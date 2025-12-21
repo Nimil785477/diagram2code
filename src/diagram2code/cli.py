@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 
 def main(argv=None):
@@ -7,6 +8,7 @@ def main(argv=None):
         description="Convert simple diagram images into runnable code.",
     )
     parser.add_argument("input", nargs="?", help="Path to input image")
+    parser.add_argument("--out", default="outputs", help="Output directory (default: outputs)")
     parser.add_argument("--version", action="store_true", help="Print version")
 
     args = parser.parse_args(argv)
@@ -19,7 +21,10 @@ def main(argv=None):
         parser.print_help()
         return 0
 
-    print(f"[stub] processing {args.input}")
+    from diagram2code.vision.preprocess import preprocess_image
+
+    result = preprocess_image(args.input, Path(args.out))
+    print(f"✅ Wrote: {result.output_path}")
     return 0
 
 

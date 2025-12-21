@@ -9,8 +9,8 @@ description = "Convert simple diagram images into runnable code (matplotlib/grap
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [{name = "Kazi Samiul Islam Nimil"}]
-dependencies = []
+authors = [{name = "Kazi Samiul Islam"}]
+dependencies = ["opencv-python>=4.8", "numpy>=1.26"]
 
 [project.optional-dependencies]
 dev = [
