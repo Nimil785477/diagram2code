@@ -11,7 +11,6 @@ from diagram2code.schema import Node
 
 def _point_to_bbox_dist2(px: int, py: int, bbox: Tuple[int, int, int, int]) -> int:
     x, y, w, h = bbox
-    # clamp point to bbox
     cx = min(max(px, x), x + w)
     cy = min(max(py, y), y + h)
     dx = px - cx
@@ -43,6 +42,7 @@ def detect_arrow_edges(
     Robust when arrows touch nodes by masking node rectangles out first.
     Returns list of (source_id, target_id).
     """
+
     # 1) Remove node rectangles from the binary image so arrows become separate components
     work = binary_img.copy()
     h, w = work.shape[:2]
@@ -59,7 +59,7 @@ def detect_arrow_edges(
 
     work[mask > 0] = 0
 
-    # close small gaps
+    # Close small gaps in arrows
     kernel = np.ones((3, 3), np.uint8)
     work = cv2.morphologyEx(work, cv2.MORPH_CLOSE, kernel, iterations=1)
 
@@ -82,7 +82,7 @@ def detect_arrow_edges(
         dx = int(xs.max() - xs.min())
         dy = int(ys.max() - ys.min())
 
-        # choose direction axis
+        # choose direction axis (horizontal vs vertical)
         if dx >= dy:
             tail_pt = pts[np.argmin(xs)]
             head_pt = pts[np.argmax(xs)]
@@ -103,7 +103,7 @@ def detect_arrow_edges(
 
     edges = sorted(set(edges))
 
-    # Debug overlay
+    # Debug overlay (single output)
     if debug_path is not None:
         debug_path = Path(debug_path)
         debug_path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,4 +141,3 @@ def detect_arrow_edges(
         cv2.imwrite(str(debug_path), vis)
 
     return edges
-
