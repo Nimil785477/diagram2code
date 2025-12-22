@@ -70,6 +70,11 @@ def main(argv=None):
     script_path = generate_from_graph_json(out_dir / "graph.json", out_dir / "render_graph.py")
     print(f"✅ Wrote: {script_path}")
 
+    from diagram2code.export_program import generate_from_graph_json as gen_program
+
+    program_path = gen_program(out_dir / "graph.json", out_dir / "generated_program.py")
+    print(f"✅ Wrote: {program_path}")
+
     return 0
 
 
