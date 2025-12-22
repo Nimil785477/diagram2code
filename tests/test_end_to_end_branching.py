@@ -15,14 +15,11 @@ def test_end_to_end_branching(tmp_path: Path):
         result.image_bin,
         debug_path=out_dir / "debug_nodes.png",
     )
-
     assert len(nodes) == 4
 
-    edges = detect_arrow_edges(result.image_bin, nodes, debug_path=out_dir / "debug_arrows.png")
-
-    # ✅ MUST be before failing assert
-    print("TMP:", out_dir)
-    print("NODES:", [(n.id, n.bbox) for n in nodes])
-    print("EDGES:", edges)
-
+    edges = detect_arrow_edges(
+        result.image_bin,
+        nodes,
+        debug_path=out_dir / "debug_arrows.png",
+    )
     assert len(edges) >= 3
