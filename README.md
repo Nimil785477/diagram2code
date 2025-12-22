@@ -1,7 +1,5 @@
 # diagram2code
 
-# diagram2code
-
 Convert flowchart-style diagrams into runnable Python programs.
 This repo is being built step-by-step.
 
