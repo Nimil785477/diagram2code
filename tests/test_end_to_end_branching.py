@@ -2,6 +2,7 @@ from pathlib import Path
 
 from diagram2code.vision.preprocess import preprocess_image
 from diagram2code.vision.detect_shapes import detect_rectangles
+from diagram2code.vision.detect_arrows import detect_arrow_edges
 
 
 def test_end_to_end_branching(tmp_path: Path):
@@ -10,11 +11,18 @@ def test_end_to_end_branching(tmp_path: Path):
 
     result = preprocess_image(img_path, out_dir)
 
-    # Save what preprocess produced for inspection (already saved in preprocess_image)
-    # Now run rectangle detection and save a debug overlay image
     nodes = detect_rectangles(
         result.image_bin,
         debug_path=out_dir / "debug_nodes.png",
     )
 
     assert len(nodes) == 4
+
+    edges = detect_arrow_edges(result.image_bin, nodes, debug_path=out_dir / "debug_arrows.png")
+
+    # ✅ MUST be before failing assert
+    print("TMP:", out_dir)
+    print("NODES:", [(n.id, n.bbox) for n in nodes])
+    print("EDGES:", edges)
+
+    assert len(edges) >= 3
