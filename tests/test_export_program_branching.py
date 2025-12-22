@@ -42,7 +42,9 @@ def test_generate_program_branching(tmp_path: Path):
     assert "def Step_3_End" in txt
 
     # main includes all calls
-    assert "Step_1_Start()" in txt
-    assert "Step_2_Left()" in txt
-    assert "Step_2_Right()" in txt
-    assert "Step_3_End()" in txt
+    assert "ctx = {}" in txt
+    assert "Step_1_Start(ctx)" in txt
+    assert "Step_2_Left(ctx)" in txt
+    assert "Step_2_Right(ctx)" in txt
+    assert "Step_3_End(ctx)" in txt
+

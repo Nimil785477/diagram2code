@@ -60,19 +60,30 @@ def generate_program(
     lines: List[str] = []
     lines.append('"""Auto-generated from diagram2code."""')
     lines.append("")
+    lines.append("# Each step receives a shared execution context dict named `ctx`.")
+    lines.append("# Add your real logic inside each TODO section.")
+    lines.append("")
 
     # define functions first
-    for nid in order:
+    for i, nid in enumerate(order, start=1):
         fn = fname(nid)
-        lines.append(f"def {fn}():")
+        lines.append(f"# Step {i}")
+        lines.append(f"def {fn}(ctx):")
+        lines.append('    """Auto-generated step.')
+        lines.append("")
+        lines.append("    Args:")
+        lines.append("        ctx (dict): Shared execution context for passing data between steps.")
+        lines.append('    """')
+        lines.append("    # TODO: implement logic here")
         lines.append(f"    print('{fn} executed')")
         lines.append("")
         lines.append("")
 
     # main calls them in order
     lines.append("def main():")
+    lines.append("    ctx = {}")
     for nid in order:
-        lines.append(f"    {fname(nid)}()")
+        lines.append(f"    {fname(nid)}(ctx)")
     lines.append("")
     lines.append("")
     lines.append("if __name__ == '__main__':")
