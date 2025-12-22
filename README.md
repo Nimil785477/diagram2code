@@ -3,12 +3,13 @@
 Convert simple flowchart-style diagrams into runnable Python programs.
 
 `diagram2code` takes a diagram image (rectangular steps + arrows), detects the flow, and generates:
-- a graph representation
-- a runnable Python program
-- optional debug visualizations
-- an exportable bundle
 
-This project is designed for **learning, prototyping, and experimentation**, not for production-grade diagram parsing.
+- a graph representation (`graph.json`)
+- a runnable Python program (`generated_program.py`)
+- optional debug visualizations (`debug_nodes.png`, `debug_arrows.png`)
+- an optional exportable bundle (`--export`)
+
+> This project is designed for **learning, prototyping, and experimentation**, not for production-grade diagram parsing. :contentReference[oaicite:1]{index=1}
 
 ---
 
@@ -25,23 +26,34 @@ This project is designed for **learning, prototyping, and experimentation**, not
 ---
 
 ## Installation
-Clone the repository and install in editable mode:
 
+Clone the repo and install in editable mode:
+
+```bash
 git clone https://github.com/Nimil785477/diagram2code.git
 cd diagram2code
 
 python -m venv .venv
+```
+Activate the environment
+```
 # Linux / macOS
 source .venv/bin/activate
-# Windows
-.\.venv\Scripts\activate
 
+# Windows (PowerShell)
+.\.venv\Scripts\Activate.ps1
+```
+Install:
+```
 pip install -e .
+```
 
 ## Quick Start
 Run diagram2code on a simple diagram:
-
+```
 python -m diagram2code.cli examples/simple/diagram.png --out outputs
+```
+This will write outputs (see Generated Files)
 
 ## Using Labels
 You can provide custom labels for nodes using a JSON file
@@ -49,18 +61,18 @@ You can provide custom labels for nodes using a JSON file
 Example labels.json
 ```
 {
-  "0": "Start",
-  "1": "Process",
-  "2": "End"
+  "0": "Step_1_Load_Data",
+  "1": "Step_2_Train_Model"
 }
 ```
 Run with labels
 ```
 python -m diagram2code.cli diagram.png --out outputs --labels labels.json
 ```
+The exported program will then use labeled function names (sanitized into valid Python identifiers).
 
 ## Export Bundle
-The --export flag creates a self-contained runnable bundle.
+The **--export** fag creates a self-contained runnable bundle(easy to share).
 ```
 python -m diagram2code.cli diagram.png --out outputs --export export_bundle
 ```
@@ -78,9 +90,25 @@ export_bundle/
 ├── run.sh
 └── README_EXPORT.md
 ```
+Running the exported bundle
+
+Windows (PowerShell):
+```
+cd export_bundle
+.\run.ps1
+```
+Linux/macOS:
+```
+cd export_bundle
+bash run.sh
+```
+or directly:
+```
+python generated_program.py
+```
 
 ## Generated Files
-After a normal run (--out outputs):
+After a normal run **(--out outputs)**:
 | File                   | Description                          |
 | ---------------------- | ------------------------------------ |
 | `preprocessed.png`     | Binary image used for detection      |
@@ -102,11 +130,13 @@ Branching flow
       → [ C ]
 ```
 ## Limitations
-|Only rectangular nodes are supported
-|Arrow detection is heuristic-based
-|Complex curves, diagonals, or overlapping arrows may fail
-|No text extraction from inside shapes
-|Not intended for UML, BPMN, or hand-drawn diagrams
+- Only rectangular nodes are supported
+- Arrow detection is heuristic-based
+- Complex curves, diagonals, or overlapping arrows may fail
+- No text extraction from inside shapes
+- Not intended for UML, BPMN, or hand-drawn diagrams
+
+
 
 
 
