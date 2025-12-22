@@ -65,8 +65,8 @@ def main(argv=None):
     # ============================
     # Step 3: Detect arrows (edges)
     # ============================
-    edges = detect_arrow_edges(result.image_bin, nodes)
-    print(f" Detected edges: {edges}")
+    edges = detect_arrow_edges(result.image_bin, nodes, debug_path=out_dir / "debug_arrows.png")
+    print(f" Wrote: {out_dir / 'debug_arrows.png'}")
 
     # ============================
     # Step 4: Export graph.json  THIS IS THE NEW PART
