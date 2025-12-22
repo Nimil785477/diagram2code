@@ -96,6 +96,36 @@ def main(argv=None):
         shutil.copy2(out_dir / "graph.json", export_dir / "graph.json")
         shutil.copy2(out_dir / "generated_program.py", export_dir / "generated_program.py")
 
+        # Write helper run scripts + README inside export bundle
+        (export_dir / "run.ps1").write_text(
+            "python .\\generated_program.py\n",
+            encoding="utf-8",
+        )
+
+        (export_dir / "run.sh").write_text(
+            "#!/usr/bin/env bash\n"
+            "set -e\n"
+            "python generated_program.py\n",
+            encoding="utf-8",
+        )
+
+        (export_dir / "README_EXPORT.md").write_text(
+            "# diagram2code export\n\n"
+            "This folder contains the exported artifacts from `diagram2code`.\n\n"
+            "## Run\n\n"
+            "### Windows (PowerShell)\n"
+            "```powershell\n"
+            ".\\run.ps1\n"
+            "```\n\n"
+            "### macOS / Linux\n"
+            "```bash\n"
+            "bash run.sh\n"
+            "```\n",
+            encoding="utf-8",
+        )
+
+        print(f"Exported bundle to: {export_dir}")
+
         # optional if exist
         for name in ["render_graph.py", "render_graph.png", "debug_nodes.png", "preprocessed.png"]:
             p = out_dir / name
