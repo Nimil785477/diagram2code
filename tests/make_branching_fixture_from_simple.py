@@ -3,7 +3,7 @@ from PIL import Image
 
 SIMPLE = Path("tests/fixtures/simple.png")
 OUT = Path("tests/fixtures/branching.png")
-
+#we reuse crops from simple.png to ensure detector compatibility
 # These match your graph.json bbox format: [x, y, w, h]
 # From your earlier output:
 # node0 bbox: [50, 124, 76, 76]
