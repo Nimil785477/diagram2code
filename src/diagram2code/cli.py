@@ -12,6 +12,7 @@ def main(argv=None):
     parser.add_argument("input", nargs="?", help="Path to input image")
     parser.add_argument("--out", default="outputs", help="Output directory (default: outputs)")
     parser.add_argument("--version", action="store_true", help="Print version")
+    parser.add_argument("--labels", default=None, help="Path to labels JSON (optional)")
 
     args = parser.parse_args(argv)
 
@@ -73,7 +74,8 @@ def main(argv=None):
     from diagram2code.labels import load_labels
     from diagram2code.export_program import generate_from_graph_json as gen_program
 
-    labels = load_labels(out_dir / "labels.json")
+    labels_path = args.labels if args.labels else (out_dir / "labels.json")
+    labels = load_labels(labels_path)
     program_path = gen_program(out_dir / "graph.json", out_dir / "generated_program.py", labels=labels)
     print(f"✅ Wrote: {program_path}")
 
