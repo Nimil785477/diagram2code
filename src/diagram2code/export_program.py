@@ -4,9 +4,10 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from diagram2code.labels import to_valid_identifier
+
 
 def _toposort(nodes: List[int], edges: List[Tuple[int, int]]) -> List[int]:
-    # Kahn's algorithm (stable)
     outgoing: Dict[int, List[int]] = {n: [] for n in nodes}
     indeg: Dict[int, int] = {n: 0 for n in nodes}
 
@@ -33,33 +34,45 @@ def _toposort(nodes: List[int], edges: List[Tuple[int, int]]) -> List[int]:
                 queue.append(m)
                 queue.sort()
 
-    # If cycle exists, fall back to node id order (don’t crash)
     if len(order) != len(nodes):
         return sorted(nodes)
     return order
 
 
-def generate_program(graph: Dict[str, Any], out_path: str | Path) -> Path:
+def generate_program(
+    graph: Dict[str, Any],
+    out_path: str | Path,
+    labels: Dict[int, str] | None = None,
+) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    labels = labels or {}
+
+    def fname(nid: int) -> str:
+        raw = labels.get(nid, f"node_{nid}")
+        return to_valid_identifier(raw, fallback=f"node_{nid}")
+
     nodes = [n["id"] for n in graph["nodes"]]
     edges = [(e["from"], e["to"]) for e in graph["edges"]]
-
     order = _toposort(nodes, edges)
 
     lines: List[str] = []
     lines.append('"""Auto-generated from diagram2code."""')
     lines.append("")
+
+    # define functions first
     for nid in order:
-        lines.append(f"def node_{nid}():")
-        lines.append(f"    print('Node {nid} executed')")
+        fn = fname(nid)
+        lines.append(f"def {fn}():")
+        lines.append(f"    print('{fn} executed')")
         lines.append("")
         lines.append("")
 
+    # main calls them in order
     lines.append("def main():")
     for nid in order:
-        lines.append(f"    node_{nid}()")
+        lines.append(f"    {fname(nid)}()")
     lines.append("")
     lines.append("")
     lines.append("if __name__ == '__main__':")
@@ -70,7 +83,11 @@ def generate_program(graph: Dict[str, Any], out_path: str | Path) -> Path:
     return out_path
 
 
-def generate_from_graph_json(graph_json_path: str | Path, out_path: str | Path) -> Path:
+def generate_from_graph_json(
+    graph_json_path: str | Path,
+    out_path: str | Path,
+    labels: Dict[int, str] | None = None,
+) -> Path:
     graph_json_path = Path(graph_json_path)
     graph = json.loads(graph_json_path.read_text(encoding="utf-8"))
-    return generate_program(graph, out_path)
+    return generate_program(graph, out_path, labels=labels)
