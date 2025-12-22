@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from pathlib import Path
 from typing import List, Tuple
 
 import cv2
@@ -30,7 +30,11 @@ def _dedupe_bboxes(bboxes: List[Tuple[int, int, int, int]], iou_thresh: float = 
     return kept
 
 
-def detect_rectangles(binary_img: np.ndarray, min_area: int = 800) -> List[Node]:
+def detect_rectangles(
+    binary_img: np.ndarray,
+    min_area: int = 800,
+    debug_path: str | Path | None = None,
+) -> List[Node]:
     """
     Detect rectangular nodes in a preprocessed (binary) image.
     Expects white shapes on black background (THRESH_BINARY_INV style).
@@ -67,7 +71,14 @@ def detect_rectangles(binary_img: np.ndarray, min_area: int = 800) -> List[Node]
     # stable ordering: left-to-right then top-to-bottom
     bboxes = sorted(bboxes, key=lambda bb: (bb[0], bb[1]))
 
-    return [Node(i, bb) for i, bb in enumerate(bboxes)]
+    nodes = [Node(i, bb) for i, bb in enumerate(bboxes)]
+
+    if debug_path is not None:
+        dbg = cv2.cvtColor(binary_img, cv2.COLOR_GRAY2BGR)
+        dbg = draw_nodes_on_image(dbg, nodes)
+        cv2.imwrite(str(Path(debug_path)), dbg)
+
+    return nodes
 
 
 def draw_nodes_on_image(bgr_img: np.ndarray, nodes: List[Node]) -> np.ndarray:

@@ -10,6 +10,11 @@ def test_end_to_end_branching(tmp_path: Path):
 
     result = preprocess_image(img_path, out_dir)
 
-    nodes = detect_rectangles(result.image_bin)
+    # Save what preprocess produced for inspection (already saved in preprocess_image)
+    # Now run rectangle detection and save a debug overlay image
+    nodes = detect_rectangles(
+        result.image_bin,
+        debug_path=out_dir / "debug_nodes.png",
+    )
 
     assert len(nodes) == 4
