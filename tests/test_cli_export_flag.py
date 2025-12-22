@@ -24,6 +24,9 @@ def test_cli_export_bundle(tmp_path: Path):
     assert (export_dir / "graph.json").exists()
     assert (export_dir / "generated_program.py").exists()
     assert (export_dir / "README_EXPORT.md").exists()
+    assert (export_dir / "run.ps1").exists()
+    assert (export_dir / "run.sh").exists()
+    assert (export_dir / "README_EXPORT.md").exists()
 
     g = json.loads((export_dir / "graph.json").read_text(encoding="utf-8"))
     assert "nodes" in g and "edges" in g

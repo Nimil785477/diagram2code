@@ -118,12 +118,28 @@ def main(argv=None):
         (export_dir / "README_EXPORT.md").write_text(
             "# diagram2code export\n\n"
             "## Run\n\n"
+            "### Windows\n"
+            "```powershell\n"
+            ".\\run.ps1\n"
+            "```\n\n"
+            "### Linux / macOS\n"
             "```bash\n"
-            "python generated_program.py\n"
+            "bash run.sh\n"
             "```\n",
             encoding="utf-8",
         )
 
+        (export_dir / "run.ps1").write_text(
+            "python .\\generated_program.py\n",
+            encoding="utf-8",
+        )
+
+        (export_dir / "run.sh").write_text(
+            "#!/usr/bin/env bash\n"
+            "set -e\n"
+            "python3 generated_program.py\n",
+            encoding="utf-8",
+        )
         print(f" Exported bundle to: {export_dir}")
 
     return 0
