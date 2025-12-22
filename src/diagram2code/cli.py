@@ -3,6 +3,13 @@ from pathlib import Path
 
 import cv2
 
+def safe_print(msg: str) -> None:
+    # Avoid UnicodeEncodeError on Windows CI/console encodings
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        print(msg.encode("utf-8", errors="replace").decode("utf-8"))
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
@@ -13,6 +20,7 @@ def main(argv=None):
     parser.add_argument("--out", default="outputs", help="Output directory (default: outputs)")
     parser.add_argument("--version", action="store_true", help="Print version")
     parser.add_argument("--labels", default=None, help="Path to labels JSON (optional)")
+    parser.add_argument("--export", type=str, default=None, help="Export runnable bundle to directory")
 
     args = parser.parse_args(argv)
 
@@ -40,7 +48,7 @@ def main(argv=None):
     # Step 1: Preprocess
     # ============================
     result = preprocess_image(args.input, out_dir)
-    print(f"✅ Wrote: {result.output_path}")
+    print(f" Wrote: {result.output_path}")
 
     # ============================
     # Step 2: Detect nodes
@@ -51,25 +59,25 @@ def main(argv=None):
     debug_nodes = draw_nodes_on_image(bgr, nodes)
     debug_nodes_path = out_dir / "debug_nodes.png"
     cv2.imwrite(str(debug_nodes_path), debug_nodes)
-    print(f"✅ Detected nodes: {len(nodes)}")
-    print(f"✅ Wrote: {debug_nodes_path}")
+    print(f" Detected nodes: {len(nodes)}")
+    print(f" Wrote: {debug_nodes_path}")
 
     # ============================
     # Step 3: Detect arrows (edges)
     # ============================
     edges = detect_arrow_edges(result.image_bin, nodes)
-    print(f"✅ Detected edges: {edges}")
+    print(f" Detected edges: {edges}")
 
     # ============================
-    # Step 4: Export graph.json  👈 THIS IS THE NEW PART
+    # Step 4: Export graph.json  THIS IS THE NEW PART
     # ============================
     graph_path = save_graph_json(nodes, edges, out_dir / "graph.json")
-    print(f"✅ Wrote: {graph_path}")
+    print(f" Wrote: {graph_path}")
 
     from diagram2code.export_matplotlib import generate_from_graph_json
 
     script_path = generate_from_graph_json(out_dir / "graph.json", out_dir / "render_graph.py")
-    print(f"✅ Wrote: {script_path}")
+    print(f" Wrote: {script_path}")
 
     from diagram2code.labels import load_labels
     from diagram2code.export_program import generate_from_graph_json as gen_program
@@ -77,7 +85,34 @@ def main(argv=None):
     labels_path = args.labels if args.labels else (out_dir / "labels.json")
     labels = load_labels(labels_path)
     program_path = gen_program(out_dir / "graph.json", out_dir / "generated_program.py", labels=labels)
-    print(f"✅ Wrote: {program_path}")
+    print(f" Wrote: {program_path}")
+
+    export_dir = Path(args.export) if args.export else None
+    if export_dir:
+        export_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy key artifacts
+        import shutil
+        shutil.copy2(out_dir / "graph.json", export_dir / "graph.json")
+        shutil.copy2(out_dir / "generated_program.py", export_dir / "generated_program.py")
+
+        # optional if exist
+        for name in ["render_graph.py", "render_graph.png", "labels.json", "debug_nodes.png", "preprocessed.png"]:
+            p = out_dir / name
+            if p.exists():
+                shutil.copy2(p, export_dir / name)
+
+        # Write a tiny README
+        (export_dir / "README_EXPORT.md").write_text(
+            "# diagram2code export\n\n"
+            "## Run\n\n"
+            "```bash\n"
+            "python generated_program.py\n"
+            "```\n",
+            encoding="utf-8",
+        )
+
+        print(f" Exported bundle to: {export_dir}")
 
     return 0
 
