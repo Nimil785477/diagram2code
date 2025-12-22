@@ -97,10 +97,22 @@ def main(argv=None):
         shutil.copy2(out_dir / "generated_program.py", export_dir / "generated_program.py")
 
         # optional if exist
-        for name in ["render_graph.py", "render_graph.png", "labels.json", "debug_nodes.png", "preprocessed.png"]:
+        for name in ["render_graph.py", "render_graph.png", "debug_nodes.png", "preprocessed.png"]:
             p = out_dir / name
             if p.exists():
                 shutil.copy2(p, export_dir / name)
+        # Copy labels.json:
+        # 1) Prefer labels.json inside out_dir (if CLI wrote one)
+        # 2) Otherwise copy from --labels argument (if provided)
+
+        labels_src = out_dir / "labels.json"
+        if not labels_src.exists() and getattr(args, "labels", None):
+            candidate = Path(args.labels)
+            if candidate.exists():
+                labels_src = candidate
+
+        if labels_src.exists():
+            shutil.copy2(labels_src, export_dir / "labels.json")
 
         # Write a tiny README
         (export_dir / "README_EXPORT.md").write_text(
