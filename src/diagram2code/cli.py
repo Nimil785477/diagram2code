@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import argparse
+import json
 from pathlib import Path
 
 import cv2
@@ -12,7 +15,7 @@ def safe_print(msg: str) -> None:
         print(msg.encode("utf-8", errors="replace").decode("utf-8"))
 
 
-def main(argv=None):
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="diagram2code",
         description="Convert simple diagram images into runnable code.",
@@ -58,7 +61,7 @@ def main(argv=None):
     # Step 1: Preprocess
     # ============================
     result = preprocess_image(args.input, out_dir)
-    safe_print(f" Wrote: {result.output_path}")
+    safe_print(f"Wrote: {result.output_path}")
 
     # ============================
     # Step 2: Detect nodes
@@ -66,29 +69,33 @@ def main(argv=None):
     nodes = detect_rectangles(result.image_bin)
 
     bgr = cv2.imread(str(args.input))
+    if bgr is None:
+        safe_print(f"Error: Could not read image: {args.input}")
+        return 1
+
     debug_nodes = draw_nodes_on_image(bgr, nodes)
     debug_nodes_path = out_dir / "debug_nodes.png"
     cv2.imwrite(str(debug_nodes_path), debug_nodes)
-    safe_print(f" Detected nodes: {len(nodes)}")
-    safe_print(f" Wrote: {debug_nodes_path}")
+    safe_print(f"Detected nodes: {len(nodes)}")
+    safe_print(f"Wrote: {debug_nodes_path}")
 
     # ============================
     # Step 3: Detect arrows (edges)
     # ============================
     edges = detect_arrow_edges(result.image_bin, nodes, debug_path=out_dir / "debug_arrows.png")
-    safe_print(f" Wrote: {out_dir / 'debug_arrows.png'}")
+    safe_print(f"Wrote: {out_dir / 'debug_arrows.png'}")
 
     # ============================
     # Step 4: graph.json
     # ============================
     graph_path = save_graph_json(nodes, edges, out_dir / "graph.json")
-    safe_print(f" Wrote: {graph_path}")
+    safe_print(f"Wrote: {graph_path}")
 
     # ============================
     # Step 5: render_graph.py
     # ============================
     script_path = gen_render_script(out_dir / "graph.json", out_dir / "render_graph.py")
-    safe_print(f" Wrote: {script_path}")
+    safe_print(f"Wrote: {script_path}")
 
     # ============================
     # Step 6: labels (either load from --labels, or OCR extract to out_dir/labels.json, or empty)
@@ -102,23 +109,25 @@ def main(argv=None):
         # OCR is optional: only run when user asks for it
         try:
             from diagram2code.vision.extract_labels import extract_node_labels
+
+            labels_dict = extract_node_labels(bgr, nodes) or {}
         except Exception as e:
-            safe_print(f" OCR label extraction unavailable: {e}")
-            return 1
+            # IMPORTANT: do NOT fail the whole CLI; just continue without labels
+            safe_print(f"Warning: OCR label extraction failed/unavailable: {type(e).__name__}: {e}")
+            labels_dict = {}
 
-        labels_dict = extract_node_labels(bgr, nodes)
         labels_out = out_dir / "labels.json"
-
-        # write labels.json
-        import json
-        labels_out.write_text(json.dumps({str(k): v for k, v in labels_dict.items()}, indent=2), encoding="utf-8")
-        safe_print(f" Wrote: {labels_out}")
+        labels_out.write_text(
+            json.dumps({str(k): v for k, v in labels_dict.items()}, indent=2),
+            encoding="utf-8",
+        )
+        safe_print(f"Wrote: {labels_out}")
 
     # ============================
     # Step 7: generated_program.py
     # ============================
     program_path = gen_program(out_dir / "graph.json", out_dir / "generated_program.py", labels=labels_dict)
-    safe_print(f" Wrote: {program_path}")
+    safe_print(f"Wrote: {program_path}")
 
     # ============================
     # Step 8: optional export bundle
@@ -169,7 +178,7 @@ def main(argv=None):
             encoding="utf-8",
         )
 
-        safe_print(f" Exported bundle to: {export_dir}")
+        safe_print(f"Exported bundle to: {export_dir}")
 
     return 0
 

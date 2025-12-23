@@ -1,10 +1,9 @@
-# OCR is optional; if tesseract is unavailable, labels default to {}
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Dict, List
 import os
 import shutil
+from pathlib import Path
+from typing import Dict, List
 
 import cv2
 
@@ -13,11 +12,13 @@ from diagram2code.schema import Node
 
 def _configure_tesseract_cmd(pytesseract) -> None:
     """
-    Make pytesseract find the tesseract binary in a cross-platform way.
-    - If TESSERACT_CMD env var is set, use it.
-    - Else if `tesseract` is on PATH, use it.
-    - Else on Windows, try common install locations.
-    - Else leave as-is (pytesseract will raise TesseractNotFoundError).
+    Configure pytesseract to find the tesseract binary cross-platform.
+
+    Priority:
+    1) TESSERACT_CMD env var (explicit)
+    2) tesseract on PATH
+    3) common Windows install locations
+    Otherwise: leave default and pytesseract will raise TesseractNotFoundError.
     """
     env_cmd = os.environ.get("TESSERACT_CMD")
     if env_cmd:
@@ -29,12 +30,10 @@ def _configure_tesseract_cmd(pytesseract) -> None:
         pytesseract.pytesseract.tesseract_cmd = which
         return
 
-    # Common Windows locations (only if needed)
     if os.name == "nt":
         candidates = [
             r"C:\Program Files\Tesseract-OCR\tesseract.exe",
             r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-            r"C:\Program Files\Tesseract-OCR\tesseract",
         ]
         for c in candidates:
             if Path(c).exists():
@@ -44,8 +43,12 @@ def _configure_tesseract_cmd(pytesseract) -> None:
 
 def extract_node_labels(bgr_img, nodes: List[Node]) -> Dict[int, str]:
     """
-    OCR each node rectangle region and return {node_id: text}.
-    If pytesseract/tesseract is unavailable, returns {} gracefully.
+    OCR each node bbox region and return {node_id: text}.
+
+    Safe behavior:
+    - If pytesseract isn't installed -> return {}
+    - If tesseract isn't available -> return {}
+    - If OCR errors on one node -> skip that node
     """
     try:
         import pytesseract
@@ -63,7 +66,6 @@ def extract_node_labels(bgr_img, nodes: List[Node]) -> Dict[int, str]:
         if roi.size == 0:
             continue
 
-        # Light preprocessing for OCR
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
