@@ -129,6 +129,16 @@ Branching flow
 [ A ]
       → [ C ]
 ```
+
+### OCR (Optional)
+`diagram2code` can extract text labels using Tesseract OCR.
+
+Requirements:
+- System: `tesseract-ocr`
+- Python: `pytesseract`
+
+If OCR is unavailable, the pipeline still works and labels default to empty.
+
 ## Limitations
 - Only rectangular nodes are supported
 - Arrow detection is heuristic-based
