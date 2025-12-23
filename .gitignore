@@ -9,3 +9,8 @@ dist/
 
 outputs/
 
+# local virtual envs
+.venv/
+d2c-test/
+venv/
+.env/
