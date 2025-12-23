@@ -12,3 +12,21 @@ jobs:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
       - run: pytest -q
+
+name: Install Tesseract (Ubuntu)
+if: runner.os == 'Linux'
+run: |
+  sudo apt-get update
+  sudo apt-get install -y tesseract-ocr
+
+name: Install Tesseract (macOS)
+if: runner.os == 'macOS'
+run: |
+  brew update
+  brew install tesseract
+
+name: Install Tesseract (Windows)
+if: runner.os == 'Windows'
+run: |
+  choco install tesseract -y
+  echo "C:\Program Files\Tesseract-OCR" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
