@@ -38,7 +38,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     if args.version:
-        safe_print("diagram2code 0.0.1")
+        safe_print("diagram2code 0.1.0")
         return 0
 
     if not args.input:
