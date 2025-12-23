@@ -12,17 +12,14 @@ def _toposort(nodes: List[int], edges: List[Tuple[int, int]]) -> List[int]:
     indeg: Dict[int, int] = {n: 0 for n in nodes}
 
     for a, b in edges:
-        if a not in outgoing:
-            outgoing[a] = []
-            indeg[a] = 0
-        if b not in outgoing:
-            outgoing[b] = []
-            indeg[b] = 0
+        outgoing.setdefault(a, [])
+        outgoing.setdefault(b, [])
+        indeg.setdefault(a, 0)
+        indeg.setdefault(b, 0)
         outgoing[a].append(b)
         indeg[b] += 1
 
-    queue = [n for n in nodes if indeg.get(n, 0) == 0]
-    queue.sort()
+    queue = sorted([n for n in outgoing.keys() if indeg.get(n, 0) == 0])
 
     order: List[int] = []
     while queue:
@@ -34,8 +31,9 @@ def _toposort(nodes: List[int], edges: List[Tuple[int, int]]) -> List[int]:
                 queue.append(m)
                 queue.sort()
 
-    if len(order) != len(nodes):
-        return sorted(nodes)
+    # If cycle or mismatch, fall back to stable ordering
+    if len(order) != len(outgoing):
+        return sorted(outgoing.keys())
     return order
 
 
@@ -61,25 +59,20 @@ def generate_program(
     lines.append('"""Auto-generated from diagram2code."""')
     lines.append("")
     lines.append("# Each step receives a shared execution context dict named `ctx`.")
-    lines.append("# Add your real logic inside each TODO section.")
+    lines.append("# Add your own state into `ctx` inside any step function.")
     lines.append("")
 
-    # define functions first
-    for i, nid in enumerate(order, start=1):
+    # Define functions
+    for nid in order:
         fn = fname(nid)
-        lines.append(f"# Step {i}")
         lines.append(f"def {fn}(ctx):")
-        lines.append('    """Auto-generated step.')
-        lines.append("")
-        lines.append("    Args:")
-        lines.append("        ctx (dict): Shared execution context for passing data between steps.")
-        lines.append('    """')
         lines.append("    # TODO: implement logic here")
         lines.append(f"    print('{fn} executed')")
         lines.append("")
         lines.append("")
 
-    # main calls them in order
+
+    # main calls them in topological order
     lines.append("def main():")
     lines.append("    ctx = {}")
     for nid in order:
