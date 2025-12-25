@@ -38,7 +38,11 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     if args.version:
-        safe_print("diagram2code 0.1.0")
+        try:
+            from importlib.metadata import version
+            safe_print(f"diagram2code {version('diagram2code')}")
+        except Exception:
+            safe_print("diagram2code (unknown version)")
         return 0
 
     if not args.input:
