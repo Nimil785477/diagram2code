@@ -47,6 +47,42 @@ Install:
 ```
 pip install -e .
 ```
+### Basic (no OCR)
+```bash
+pip install diagram2code
+```
+With OCR support(optional)
+```bash
+pip install diagram2code[ocr]
+```
+You must also install Tesseract OCR on your system:
+- Windows: https://github.com/UB-Mannheim/tesseract/wiki
+- macOS:
+```bash
+brew install tesseract
+```
+- Ubuntu/Debian:
+```bash
+sudo apt install tesseract-ocr
+```
+Then run:
+```bash
+diagram2code image.png --extract-labels
+```
+
+This matches exactly what your code already does ✔️
+
+---
+
+## 3️⃣ (Optional but recommended) Add a runtime hint
+
+You already handle this well, but one tiny UX improvement:
+
+In `cli.py`, after `--extract-labels` failure, you could optionally print:
+
+```python
+safe_print("Hint: install OCR support with `pip install diagram2code[ocr]` and install Tesseract.")
+```
 
 ## Quick Start
 Run diagram2code on a simple diagram:

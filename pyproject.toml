@@ -15,9 +15,12 @@ dependencies = ["opencv-python>=4.8", "numpy>=1.26", "matplotlib>=3.8"]
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=7.0",
-  "ruff>=0.5.0",
-  "pytesseract",
+    "pytest>=7.0",
+    "ruff>=0.5.0",
+]
+
+ocr = [
+    "pytesseract>=0.3.10",
 ]
 
 [project.scripts]
