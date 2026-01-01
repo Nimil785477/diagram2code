@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Kazi Samiul Islam"}]
 dependencies = ["opencv-python>=4.8", "numpy>=1.26", "matplotlib>=3.8"]
+requires-python = ">=3.11,<3.14"
 
 
 [project.optional-dependencies]
