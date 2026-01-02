@@ -113,19 +113,35 @@ def main(argv=None) -> int:
         # OCR is optional: only run when user asks for it
         try:
             from diagram2code.vision.extract_labels import extract_node_labels
-
-            labels_dict = extract_node_labels(bgr, nodes) or {}
-        except Exception as e:
-            # IMPORTANT: do NOT fail the whole CLI; just continue without labels
-            safe_print(f"Warning: OCR label extraction failed/unavailable: {type(e).__name__}: {e}")
+        except ImportError:
+            safe_print(
+                " OCR requested but pytesseract is not installed.\n"
+                " Install OCR extra:\n"
+                "   pip install \"diagram2code[ocr]\"\n"
+                " Then install the system Tesseract binary (see README)."
+            )
             labels_dict = {}
+        else:
+            labels_dict = extract_node_labels(bgr, nodes)
 
-        labels_out = out_dir / "labels.json"
-        labels_out.write_text(
-            json.dumps({str(k): v for k, v in labels_dict.items()}, indent=2),
-            encoding="utf-8",
-        )
-        safe_print(f"Wrote: {labels_out}")
+            # If OCR returned nothing, be explicit (usually means tesseract missing or no text found)
+            if not labels_dict:
+                safe_print(
+                    " OCR ran but returned no labels.\n"
+                    " If you expected labels, ensure Tesseract is installed and available on PATH.\n"
+                    " - Windows: choco install tesseract\n"
+                    " - macOS: brew install tesseract\n"
+                    " - Ubuntu/Debian: sudo apt-get install -y tesseract-ocr"
+                )
+
+            # write labels.json (even if empty, so user sees the artifact)
+            import json
+            labels_out = out_dir / "labels.json"
+            labels_out.write_text(
+                json.dumps({str(k): v for k, v in labels_dict.items()}, indent=2),
+                encoding="utf-8",
+            )
+            safe_print(f" Wrote: {labels_out}")
 
     # ============================
     # Step 7: generated_program.py
