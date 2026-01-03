@@ -9,6 +9,10 @@ dist/
 
 outputs/
 
+export_out/
+outputs/
+demo_outputs/
+
 # local virtual envs
 .venv/
 d2c-test/
