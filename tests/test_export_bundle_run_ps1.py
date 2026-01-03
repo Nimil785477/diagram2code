@@ -1,6 +1,13 @@
-import subprocess
 import sys
+import subprocess
 from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="PowerShell script test is Windows-only",
+)
 
 def test_export_bundle_run_ps1(tmp_path: Path):
     out_dir = tmp_path / "out"
@@ -12,5 +19,4 @@ def test_export_bundle_run_ps1(tmp_path: Path):
     ps1 = export_dir / "run.ps1"
     assert ps1.exists()
 
-    # Run from outside export dir (cwd is tmp_path)
     subprocess.check_call(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(ps1)], cwd=str(tmp_path))
