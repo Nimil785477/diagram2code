@@ -31,6 +31,11 @@ def main(argv=None) -> int:
         action="store_true",
         help="Extract labels via OCR and write labels.json into --out (optional; requires pytesseract + tesseract).",
     )
+    parser.add_argument(
+    "--labels-template",
+    action="store_true",
+    help="Write a labels.template.json (node_id -> empty string) into --out, based on detected nodes.",
+    )
 
     # export:
     parser.add_argument("--export", type=str, default=None, help="Export runnable bundle to directory")
@@ -82,6 +87,16 @@ def main(argv=None) -> int:
     cv2.imwrite(str(debug_nodes_path), debug_nodes)
     safe_print(f"Detected nodes: {len(nodes)}")
     safe_print(f"Wrote: {debug_nodes_path}")
+    # ============================
+    # Optional: labels template
+    # ============================
+    if args.labels_template:
+        import json
+
+        template_path = out_dir / "labels.template.json"
+        template = {str(n.id): "" for n in nodes}
+        template_path.write_text(json.dumps(template, indent=2), encoding="utf-8")
+        safe_print(f" Wrote: {template_path}")
 
     # ============================
     # Step 3: Detect arrows (edges)
@@ -165,6 +180,7 @@ def main(argv=None) -> int:
         # Optional artifacts if they exist
         for name in [
             "labels.json",
+            "labels.template.json",
             "debug_nodes.png",
             "debug_arrows.png",
             "preprocessed.png",
@@ -176,11 +192,20 @@ def main(argv=None) -> int:
                 shutil.copy2(p, export_dir / name)
 
         # Run scripts
-        (export_dir / "run.ps1").write_text("python .\\generated_program.py\n", encoding="utf-8")
-        (export_dir / "run.sh").write_text(
-            "#!/usr/bin/env bash\nset -e\npython3 generated_program.py\n",
+        (export_dir / "run.ps1").write_text(
+            '$ErrorActionPreference = "Stop"\n'
+            'python "$PSScriptRoot\\generated_program.py"\n',
             encoding="utf-8",
         )
+
+        (export_dir / "run.sh").write_text(
+            "#!/usr/bin/env bash\n"
+            "set -e\n"
+            'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
+            'python3 "$DIR/generated_program.py"\n',
+            encoding="utf-8",
+        )
+
 
         # README
         (export_dir / "README_EXPORT.md").write_text(

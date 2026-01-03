@@ -74,7 +74,7 @@ This matches exactly what your code already does ✔️
 
 ---
 
-## 3️⃣ (Optional but recommended) Add a runtime hint
+## (Optional but recommended) Add a runtime hint
 
 You already handle this well, but one tiny UX improvement:
 
@@ -82,6 +82,13 @@ In `cli.py`, after `--extract-labels` failure, you could optionally print:
 
 ```python
 safe_print("Hint: install OCR support with `pip install diagram2code[ocr]` and install Tesseract.")
+```
+
+### Generate a labels template (no OCR)
+If you want to label nodes manually, generate a template file:
+
+```bash
+diagram2code path/to/diagram.png --out outputs --labels-template
 ```
 
 ## Quick Start
