@@ -14,7 +14,7 @@ def load_labels(path: str | Path) -> Dict[int, str]:
     p = Path(path)
     if not p.exists():
         return {}
-    raw = json.loads(p.read_text(encoding="utf-8"))
+    raw = json.loads(p.read_text(encoding="utf-8-sig"))
     out: Dict[int, str] = {}
     for k, v in raw.items():
         try:

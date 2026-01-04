@@ -98,6 +98,14 @@ python -m diagram2code.cli examples/simple/diagram.png --out outputs
 ```
 This will write outputs (see Generated Files)
 
+## Inspect the detected graph (print summary)
+
+```bash
+diagram2code tests/fixtures/branching.png --out outputs --print-graph
+```
+This prints a human-readable summary (nodes + edges) and still writes the normal output files.
+Use `--dry-run --print-graph` if you only want the summary without writing files.
+
 ## Using Labels
 You can provide custom labels for nodes using a JSON file
 
