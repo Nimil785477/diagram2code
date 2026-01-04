@@ -20,7 +20,7 @@ dev = [
 ]
 
 ocr = [
-    "pytesseract>=0.3.10",
+    "pytesseract>=0.1.2",
 ]
 
 [project.scripts]

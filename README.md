@@ -92,19 +92,45 @@ diagram2code path/to/diagram.png --out outputs --labels-template
 ```
 
 ## Quick Start
+
 Run diagram2code on a simple diagram:
 ```
-python -m diagram2code.cli examples/simple/diagram.png --out outputs
+diagram2code tests/fixtures/branching.png --out outputs
 ```
 This will write outputs (see Generated Files)
 
 ## Inspect the detected graph (print summary)
 
+You can inspect the detected nodes, edges, and labels using `--print-graph`.
+
 ```bash
-diagram2code tests/fixtures/branching.png --out outputs --print-graph
+diagram2code tests/fixtures/branching.png --out outputs --print-graph.
 ```
-This prints a human-readable summary (nodes + edges) and still writes the normal output files.
-Use `--dry-run --print-graph` if you only want the summary without writing files.
+This will:
+- run the full detection pipeline
+- write all normal output files
+- print a human-readable graph summary to the console
+
+Example Output:
+```
+Graph summary
+Labels source: none
+Nodes: 4
+  - id=0 bbox=(40, 40, 76, 76) label=''
+Edges: 4
+  - 0 -> 1
+```
+### Dry-run mode
+If you only want to inspect the result without writing any files, use:
+```
+diagram2code diagram.png --dry-run --print-graph
+```
+
+In dry-run mode:
+- detection still runs fully
+- no files are written
+- OCR does not write labels.json
+- export bundles are not created
 
 ## Using Labels
 You can provide custom labels for nodes using a JSON file
@@ -122,8 +148,33 @@ python -m diagram2code.cli diagram.png --out outputs --labels labels.json
 ```
 The exported program will then use labeled function names (sanitized into valid Python identifiers).
 
+### Label resolution order (important)
+
+When multiple label sources are possible, `diagram2code` resolves labels in the following priority order:
+
+1. **Explicit labels file**
+   ```bash
+   diagram2code diagram.png --labels labels.json
+   ```
+2. **Auto-detect `labels.json` inside export directory**
+   ```bash
+   diagram2code diagram.png --export export_out
+   ```
+If `export_out/labels.json` exists, it is automatically loaded.
+3. **OCR extraction**
+   ```bash
+   diagram2code diagram.png --extract-labels
+   ```
+4. **Fallback**
+   - If none of the above are provided, nodes have empty label
+   The active source is shown when using --print-graph:
+   ```bash
+   Labels source: auto (export_out/labels.json)
+   ```
+
 ## Export Bundle
-The **--export** fag creates a self-contained runnable bundle(easy to share).
+The **--export** flag creates a self-contained runnable bundle(easy to share). If `labels.json` exists inside the export directory, it will be automatically used on subsequent runs.
+
 ```
 python -m diagram2code.cli diagram.png --out outputs --export export_bundle
 ```
