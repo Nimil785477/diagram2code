@@ -160,7 +160,7 @@ When multiple label sources are possible, `diagram2code` resolves labels in the 
    ```bash
    diagram2code diagram.png --export export_out
    ```
-If `export_out/labels.json` exists, it is automatically loaded.
+   If `export_out/labels.json` exists, it is automatically loaded.
 3. **OCR extraction**
    ```bash
    diagram2code diagram.png --extract-labels
