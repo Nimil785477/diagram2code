@@ -164,10 +164,24 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--render-graph",
         action="store_true",
-        help="Render graph.json as a visual graph image (requires diagram2code[render])",
+        help="Render graph.json as a visual graph image.",
     )
 
-    # NEW: suppress debug artifacts
+    parser.add_argument(
+        "--render-format",
+        choices=["png", "svg"],
+        default="png",
+        help="Output format for --render-graph (default: png).",
+    )
+
+    parser.add_argument(
+        "--render-layout",
+        choices=["auto", "topdown", "spring"],
+        default="auto",
+        help="Layout for --render-graph: auto (DAG->topdown), topdown, or spring.",
+    )
+
+    # suppress debug artifacts
     parser.add_argument(
         "--no-debug",
         action="store_true",
@@ -245,7 +259,10 @@ def main(argv=None) -> int:
         if args.no_debug:
             safe_print("Would write: graph.json, generated_program.py")
         else:
-            safe_print("Would write: preprocessed.png, debug_nodes.png, debug_arrows.png, graph.json, render_graph.py, generated_program.py")
+            safe_print(
+                "Would write: preprocessed.png, debug_nodes.png, debug_arrows.png, "
+                "graph.json, render_graph.py, generated_program.py"
+            )
 
         if args.export:
             safe_print(f"Would export bundle to: {Path(args.export)}")
@@ -254,7 +271,7 @@ def main(argv=None) -> int:
             _print_graph_summary(nodes, edges, labels_dict, labels_source)
 
         if args.render_graph:
-            safe_print("Would render: graph.png (skipped in dry-run)")
+            safe_print(f"Would render: graph.{args.render_format} (skipped in dry-run)")
 
         return 0
 
@@ -399,25 +416,30 @@ def main(argv=None) -> int:
         target_dir = export_dir if export_dir else out_dir
         target_graph = target_dir / "graph.json"
         target_labels = target_dir / "labels.json"
-        target_img = target_dir / "graph.png"
+        target_img = target_dir / f"graph.{args.render_format}"
 
         if not target_graph.exists():
             raise RuntimeError("--render-graph requested but graph.json was not generated")
 
         try:
-            from diagram2code.render_graph import render_graph
+            from diagram2code.render_graph import render_graph, RenderOptions
         except ImportError:
             safe_print(
-                "Graph rendering requested but render dependencies are not installed.\n"
-                'Install render extra:\n'
-                '  pip install "diagram2code[render]"\n'
+                "Graph rendering requested but required dependencies are missing.\n"
+                "Ensure 'matplotlib' and 'networkx' are installed."
             )
             raise
+
+        opts = RenderOptions(
+            output_path=target_img,
+            layout=args.render_layout,
+        )
 
         render_graph(
             target_graph,
             target_img,
             labels_json_path=target_labels if target_labels.exists() else None,
+            options=opts,
         )
         safe_print(f"Wrote: {target_img}")
 

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Literal
 
 import json
+
+
+LayoutMode = Literal["auto", "topdown", "spring"]
 
 
 @dataclass(frozen=True)
@@ -13,6 +16,7 @@ class RenderOptions:
     title: Optional[str] = None
     show_node_ids: bool = True
     dpi: int = 200
+    layout: LayoutMode = "auto"
 
 
 def _load_graph(graph_json_path: Path) -> Dict[str, Any]:
@@ -56,6 +60,50 @@ def _node_label(node: Dict[str, Any], labels: Optional[Dict[str, str]]) -> str:
     return str(node_id) if node_id is not None else "node"
 
 
+def _topdown_layout(G) -> Dict[str, Tuple[float, float]]:
+    """
+    Produce a simple top-down (layered) layout for DAGs.
+    Falls back to spring layout if cycles exist.
+    """
+    import networkx as nx
+
+    if not nx.is_directed_acyclic_graph(G):
+        return nx.spring_layout(G, seed=42)
+
+    layers = list(nx.topological_generations(G))
+    pos: Dict[str, Tuple[float, float]] = {}
+
+    # Space nodes horizontally per layer
+    y = 0.0
+    for li, layer in enumerate(layers):
+        layer_nodes = list(layer)
+        n = len(layer_nodes)
+        # center around 0: e.g. for n=3 -> x in [-1,0,1]
+        for xi, node in enumerate(layer_nodes):
+            x = float(xi) - (n - 1) / 2.0
+            pos[node] = (x, -float(li))  # downwards as layer index increases
+
+    # For any nodes not included (shouldn't happen), place them with spring
+    if len(pos) != len(G.nodes):
+        fallback = nx.spring_layout(G, seed=42)
+        for k, v in fallback.items():
+            pos.setdefault(k, (float(v[0]), float(v[1])))
+
+    return pos
+
+
+def _choose_layout(G, mode: LayoutMode) -> Dict[str, Tuple[float, float]]:
+    import networkx as nx
+
+    if mode == "spring":
+        return nx.spring_layout(G, seed=42)
+    if mode == "topdown":
+        return _topdown_layout(G)
+
+    # auto: try topdown if DAG, else spring
+    return _topdown_layout(G)
+
+
 def render_graph(
     graph_json_path: Path,
     output_path: Path,
@@ -63,7 +111,7 @@ def render_graph(
     options: Optional[RenderOptions] = None,
 ) -> Path:
     """
-    Renders graph.json to a PNG image.
+    Renders graph.json to an image (PNG or SVG depending on output_path suffix).
 
     Requirements:
       - networkx
@@ -110,10 +158,10 @@ def render_graph(
         raise ValueError(f"No nodes found in {graph_json_path}. Cannot render graph.")
 
     # Layout
-    pos = nx.spring_layout(G, seed=42)
+    pos = _choose_layout(G, opts.layout)
 
     # Labels
-    node_labels = {}
+    node_labels: Dict[str, str] = {}
     for node_id, attrs in G.nodes(data=True):
         lbl = attrs.get("label", node_id)
         if opts.show_node_ids and lbl != node_id:
@@ -131,6 +179,8 @@ def render_graph(
 
     plt.axis("off")
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # SVG doesn't use DPI in the same way PNG does; it's fine to pass dpi anyway.
     plt.savefig(output_path, dpi=opts.dpi, bbox_inches="tight")
     plt.close()
 
