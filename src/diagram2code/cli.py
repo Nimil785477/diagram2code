@@ -164,7 +164,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--render-graph",
         action="store_true",
-        help="Render graph.json as a visual graph image.",
+        help="Render graph.json as a visual graph image (requires matplotlib + networkx).",
     )
 
     parser.add_argument(
