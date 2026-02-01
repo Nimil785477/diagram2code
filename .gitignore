@@ -17,4 +17,5 @@ demo_outputs/
 .venv/
 d2c-test/
 venv/
+venv_test/
 .env/
