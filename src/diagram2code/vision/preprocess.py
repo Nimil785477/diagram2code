@@ -40,10 +40,17 @@ def preprocess_bgr_to_bin(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return gray, bin_img
 
 
-def preprocess_image(input_path: str | Path, out_dir: str | Path) -> PreprocessResult:
+def preprocess_image(
+    input_path: str | Path,
+    out_dir: str | Path,
+    *,
+    write_debug: bool = True,
+) -> PreprocessResult:
     """
     File-based preprocessing: reads the image, computes binarization,
-    and writes preprocessed.png to out_dir.
+    and (optionally) writes preprocessed.png to out_dir.
+
+    write_debug=False is used by CLI --no-debug to avoid writing debug artifacts.
     """
     input_path = Path(input_path)
     out_dir = Path(out_dir)
@@ -56,7 +63,8 @@ def preprocess_image(input_path: str | Path, out_dir: str | Path) -> PreprocessR
     gray, bin_img = preprocess_bgr_to_bin(img)
 
     out_path = out_dir / "preprocessed.png"
-    cv2.imwrite(str(out_path), bin_img)
+    if write_debug:
+        cv2.imwrite(str(out_path), bin_img)
 
     return PreprocessResult(
         original_path=input_path,

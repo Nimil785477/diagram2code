@@ -76,7 +76,7 @@ def _resolve_labels(
             safe_print(
                 "OCR requested but pytesseract is not installed.\n"
                 "Install OCR extra:\n"
-                "  pip install \"diagram2code[ocr]\"\n"
+                '  pip install "diagram2code[ocr]"\n'
                 "Then install the system Tesseract binary (see README)."
             )
             return {}, "ocr (unavailable: missing pytesseract)"
@@ -161,6 +161,19 @@ def main(argv=None) -> int:
         help="Print a human-readable summary of detected nodes/edges (and labels if available).",
     )
 
+    parser.add_argument(
+        "--render-graph",
+        action="store_true",
+        help="Render graph.json as a visual graph image (requires diagram2code[render])",
+    )
+
+    # NEW: suppress debug artifacts
+    parser.add_argument(
+        "--no-debug",
+        action="store_true",
+        help="Do not write debug artifacts (preprocessed/debug images and render_graph.py).",
+    )
+
     args = parser.parse_args(argv)
 
     if args.version:
@@ -211,8 +224,8 @@ def main(argv=None) -> int:
             nodes=nodes,
             bgr=bgr,
             export_dir=export_dir,
-            write_labels_json=False,         # IMPORTANT: dry-run writes nothing
-            out_dir=Path(args.out),          # not used when write_labels_json=False
+            write_labels_json=False,  # IMPORTANT: dry-run writes nothing
+            out_dir=Path(args.out),   # not used when write_labels_json=False
         )
 
         safe_print(f"Would detect nodes: {len(nodes)}")
@@ -229,12 +242,19 @@ def main(argv=None) -> int:
         elif args.extract_labels:
             safe_print("Would run OCR (requires diagram2code[ocr] + system tesseract)")
 
-        safe_print("Would write: debug_nodes.png, debug_arrows.png, graph.json, render_graph.py, generated_program.py")
+        if args.no_debug:
+            safe_print("Would write: graph.json, generated_program.py")
+        else:
+            safe_print("Would write: preprocessed.png, debug_nodes.png, debug_arrows.png, graph.json, render_graph.py, generated_program.py")
+
         if args.export:
             safe_print(f"Would export bundle to: {Path(args.export)}")
 
         if args.print_graph:
             _print_graph_summary(nodes, edges, labels_dict, labels_source)
+
+        if args.render_graph:
+            safe_print("Would render: graph.png (skipped in dry-run)")
 
         return 0
 
@@ -249,9 +269,10 @@ def main(argv=None) -> int:
     from diagram2code.export_matplotlib import generate_from_graph_json as gen_render_script
     from diagram2code.export_program import generate_from_graph_json as gen_program
 
-    # Step 1: preprocess
-    result = preprocess_image(str(in_path), out_dir)
-    safe_print(f"Wrote: {result.output_path}")
+    # Step 1: preprocess (gated preprocessed.png write)
+    result = preprocess_image(str(in_path), out_dir, write_debug=not args.no_debug)
+    if not args.no_debug:
+        safe_print(f"Wrote: {result.output_path}")
 
     # Step 2: nodes
     nodes = detect_rectangles(result.image_bin)
@@ -261,31 +282,36 @@ def main(argv=None) -> int:
         safe_print(f"Error: Could not read image: {in_path}")
         return 1
 
-    debug_nodes = draw_nodes_on_image(bgr, nodes)
-    debug_nodes_path = out_dir / "debug_nodes.png"
-    cv2.imwrite(str(debug_nodes_path), debug_nodes)
     safe_print(f"Detected nodes: {len(nodes)}")
-    safe_print(f"Wrote: {debug_nodes_path}")
 
-    # labels template
+    # debug_nodes.png (gated)
+    if not args.no_debug:
+        debug_nodes = draw_nodes_on_image(bgr, nodes)
+        debug_nodes_path = out_dir / "debug_nodes.png"
+        cv2.imwrite(str(debug_nodes_path), debug_nodes)
+        safe_print(f"Wrote: {debug_nodes_path}")
+
+    # labels template (keep writing if requested)
     if args.labels_template:
         template_path = out_dir / "labels.template.json"
         template = {str(n.id): "" for n in nodes}
         template_path.write_text(json.dumps(template, indent=2), encoding="utf-8")
         safe_print(f"Wrote: {template_path}")
 
-    # Step 3: edges
-    debug_arrows_path = out_dir / "debug_arrows.png"
+    # Step 3: edges (gated debug_arrows.png write via debug_path=None)
+    debug_arrows_path = None if args.no_debug else (out_dir / "debug_arrows.png")
     edges = detect_arrow_edges(result.image_bin, nodes, debug_path=debug_arrows_path)
-    safe_print(f"Wrote: {debug_arrows_path}")
+    if debug_arrows_path is not None:
+        safe_print(f"Wrote: {debug_arrows_path}")
 
     # Step 4: graph.json
     graph_path = save_graph_json(nodes, edges, out_dir / "graph.json")
     safe_print(f"Wrote: {graph_path}")
 
-    # Step 5: render script
-    script_path = gen_render_script(out_dir / "graph.json", out_dir / "render_graph.py")
-    safe_print(f"Wrote: {script_path}")
+    # Step 5: render script (gated)
+    if not args.no_debug:
+        script_path = gen_render_script(out_dir / "graph.json", out_dir / "render_graph.py")
+        safe_print(f"Wrote: {script_path}")
 
     # Ensure export dir exists if requested (needed for label auto-detect + export)
     if export_dir:
@@ -297,7 +323,7 @@ def main(argv=None) -> int:
         nodes=nodes,
         bgr=bgr,
         export_dir=export_dir,
-        write_labels_json=True,     # normal run may write labels.json for OCR
+        write_labels_json=True,  # normal run may write labels.json for OCR
         out_dir=out_dir,
     )
 
@@ -367,6 +393,33 @@ def main(argv=None) -> int:
         safe_print("  Linux / macOS:")
         safe_print(f"    cd {export_dir}")
         safe_print("    bash run.sh\n")
+
+    # Step 9: render graph image (after graph.json exists; after export copy)
+    if args.render_graph:
+        target_dir = export_dir if export_dir else out_dir
+        target_graph = target_dir / "graph.json"
+        target_labels = target_dir / "labels.json"
+        target_img = target_dir / "graph.png"
+
+        if not target_graph.exists():
+            raise RuntimeError("--render-graph requested but graph.json was not generated")
+
+        try:
+            from diagram2code.render_graph import render_graph
+        except ImportError:
+            safe_print(
+                "Graph rendering requested but render dependencies are not installed.\n"
+                'Install render extra:\n'
+                '  pip install "diagram2code[render]"\n'
+            )
+            raise
+
+        render_graph(
+            target_graph,
+            target_img,
+            labels_json_path=target_labels if target_labels.exists() else None,
+        )
+        safe_print(f"Wrote: {target_img}")
 
     return 0
 
