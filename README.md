@@ -221,6 +221,29 @@ After a normal run **(--out outputs)**:
 | `generated_program.py` | Generated executable Python program  |
 
 ## Examples
+
+### CLI Usage Examples
+Basic run (writes outputs to `outputs/`):
+```bash
+python -m diagram2code path/to/image.png
+```
+Export a runnable bundle:
+```bash
+python -m diagram2code path/to/image.png --export out
+```
+Render the detected graph (top-down layout):
+```bash
+python -m diagram2code path/to/image.png --export out --render-graph --render-layout topdown
+```
+Render the graph as SVG:
+```bash
+python -m diagram2code path/to/image.png --export out --render-graph --render-format svg
+```
+Run without writing debug artifacts:
+```bash
+python -m diagram2code path/to/image.png --no-debug
+```
+### Diagram Examples
 Simple linear flow
 ```
 [ A ] → [ B ] → [ C ]
