@@ -1,6 +1,6 @@
 import subprocess
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 def test_no_debug_suppresses_debug_artifacts(tmp_path):

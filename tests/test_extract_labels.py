@@ -2,9 +2,9 @@ from pathlib import Path
 
 import cv2
 
-from diagram2code.vision.preprocess import preprocess_image
 from diagram2code.vision.detect_shapes import detect_rectangles
 from diagram2code.vision.extract_labels import extract_node_labels
+from diagram2code.vision.preprocess import preprocess_image
 
 
 def test_extract_labels_returns_dict(tmp_path: Path):

@@ -138,16 +138,24 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--extract-labels",
         action="store_true",
-        help="Extract labels via OCR and write labels.json into --out (optional; requires pytesseract + tesseract).",
+        help=(
+            "Extract labels via OCR and write labels.json into --out (optional; "
+            "requires pytesseract + tesseract)."
+        ),
     )
     parser.add_argument(
         "--labels-template",
         action="store_true",
-        help="Write a labels.template.json (node_id -> empty string) into --out, based on detected nodes.",
+        help=(
+            "Write a labels.template.json (node_id -> empty string) into --out, "
+            "based on detected nodes."
+        ),
     )
 
     # export:
-    parser.add_argument("--export", type=str, default=None, help="Export runnable bundle to directory")
+    parser.add_argument(
+        "--export", type=str, default=None, help="Export runnable bundle to directory"
+    )
 
     parser.add_argument(
         "--dry-run",
@@ -193,6 +201,7 @@ def main(argv=None) -> int:
     if args.version:
         try:
             from importlib.metadata import version
+
             safe_print(f"diagram2code {version('diagram2code')}")
         except Exception:
             safe_print("diagram2code (unknown version)")
@@ -239,7 +248,7 @@ def main(argv=None) -> int:
             bgr=bgr,
             export_dir=export_dir,
             write_labels_json=False,  # IMPORTANT: dry-run writes nothing
-            out_dir=Path(args.out),   # not used when write_labels_json=False
+            out_dir=Path(args.out),  # not used when write_labels_json=False
         )
 
         safe_print(f"Would detect nodes: {len(nodes)}")
@@ -281,10 +290,10 @@ def main(argv=None) -> int:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    from diagram2code.vision.preprocess import preprocess_image
     from diagram2code.export_graph import save_graph_json
     from diagram2code.export_matplotlib import generate_from_graph_json as gen_render_script
     from diagram2code.export_program import generate_from_graph_json as gen_program
+    from diagram2code.vision.preprocess import preprocess_image
 
     # Step 1: preprocess (gated preprocessed.png write)
     result = preprocess_image(str(in_path), out_dir, write_debug=not args.no_debug)
@@ -349,7 +358,9 @@ def main(argv=None) -> int:
         _print_graph_summary(nodes, edges, labels_dict, labels_source)
 
     # Step 7: program
-    program_path = gen_program(out_dir / "graph.json", out_dir / "generated_program.py", labels=labels_dict)
+    program_path = gen_program(
+        out_dir / "graph.json", out_dir / "generated_program.py", labels=labels_dict
+    )
     safe_print(f"Wrote: {program_path}")
 
     # Step 8: export bundle
@@ -374,8 +385,7 @@ def main(argv=None) -> int:
 
         # Run scripts (work from any directory)
         (export_dir / "run.ps1").write_text(
-            '$ErrorActionPreference = "Stop"\n'
-            'python "$PSScriptRoot\\generated_program.py"\n',
+            '$ErrorActionPreference = "Stop"\npython "$PSScriptRoot\\generated_program.py"\n',
             encoding="utf-8",
         )
         (export_dir / "run.sh").write_text(
@@ -422,7 +432,7 @@ def main(argv=None) -> int:
             raise RuntimeError("--render-graph requested but graph.json was not generated")
 
         try:
-            from diagram2code.render_graph import render_graph, RenderOptions
+            from diagram2code.render_graph import RenderOptions, render_graph
         except ImportError:
             safe_print(
                 "Graph rendering requested but required dependencies are missing.\n"

@@ -23,4 +23,3 @@ def test_generate_program(tmp_path: Path):
     assert "ctx = {}" in txt
     assert "Step_1_Load_Data(ctx)" in txt
     assert "Step_2_Train_Model(ctx)" in txt
-

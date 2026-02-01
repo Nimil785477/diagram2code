@@ -10,7 +10,15 @@ def test_cli_print_graph_normal_run(tmp_path: Path):
     img = Path("tests/fixtures/branching.png")
 
     result = subprocess.run(
-        [sys.executable, "-m", "diagram2code.cli", str(img), "--out", str(out_dir), "--print-graph"],
+        [
+            sys.executable,
+            "-m",
+            "diagram2code.cli",
+            str(img),
+            "--out",
+            str(out_dir),
+            "--print-graph",
+        ],
         capture_output=True,
         text=True,
         check=True,

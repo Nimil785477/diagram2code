@@ -1,7 +1,7 @@
-from pathlib import Path
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 
 def test_cli_export_bundle(tmp_path: Path):

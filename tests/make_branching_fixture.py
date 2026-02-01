@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from PIL import Image, ImageDraw
 
 OUT = Path("tests/fixtures/branching.png")
@@ -13,26 +14,18 @@ def main() -> None:
 
     # Node boxes (x, y, size)
     nodes = {
-        0: (80, 60, 90),    # top-left
-        1: (60, 240, 90),   # bottom-left
+        0: (80, 60, 90),  # top-left
+        1: (60, 240, 90),  # bottom-left
         2: (260, 240, 90),  # bottom-mid
         3: (430, 150, 90),  # right-mid
-    }
-
-    colors = {
-        0: (140, 40, 40),
-        1: (60, 120, 200),
-        2: (60, 180, 120),
-        3: (180, 140, 60),
     }
 
     def rect_center(x: int, y: int, s: int) -> tuple[int, int]:
         return (x + s // 2, y + s // 2)
 
     # Draw rectangles (white fill, thick black outline)
-    for nid, (x, y, s) in nodes.items():
+    for _nid, (x, y, s) in nodes.items():
         d.rectangle([x, y, x + s, y + s], outline="black", width=6, fill="white")
-
 
     # Simple arrows (lines + triangular head)
     def arrow(a: int, b: int) -> None:

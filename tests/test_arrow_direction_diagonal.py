@@ -44,7 +44,7 @@ def _make_binary_diagram_diagonal(direction: str) -> tuple[np.ndarray, list[Node
     img = np.zeros((220, 300), dtype=np.uint8)
 
     # Node 1 (top-left)
-    n1_bbox = (30, 40, 70, 45)   # x,y,w,h
+    n1_bbox = (30, 40, 70, 45)  # x,y,w,h
     cv2.rectangle(
         img,
         (n1_bbox[0], n1_bbox[1]),
@@ -65,7 +65,9 @@ def _make_binary_diagram_diagonal(direction: str) -> tuple[np.ndarray, list[Node
 
     if direction == "1to2":
         start = _bbox_corner_towards(n1_bbox, n2_bbox, margin=10)
-        end = _bbox_corner_towards(n2_bbox, n1_bbox, margin=10)  # outside n2 towards n1 (arrowhead outside)
+        end = _bbox_corner_towards(
+            n2_bbox, n1_bbox, margin=10
+        )  # outside n2 towards n1 (arrowhead outside)
         cv2.arrowedLine(img, start, end, 255, 6, tipLength=0.25)
         expected = (1, 2)
     else:

@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List
 
 import cv2
 
@@ -41,7 +40,7 @@ def _configure_tesseract_cmd(pytesseract) -> None:
                 return
 
 
-def extract_node_labels(bgr_img, nodes: List[Node]) -> Dict[int, str]:
+def extract_node_labels(bgr_img, nodes: list[Node]) -> dict[int, str]:
     """
     OCR each node bbox region and return {node_id: text}.
 
@@ -58,7 +57,7 @@ def extract_node_labels(bgr_img, nodes: List[Node]) -> Dict[int, str]:
 
     _configure_tesseract_cmd(pytesseract)
 
-    labels: Dict[int, str] = {}
+    labels: dict[int, str] = {}
 
     for n in nodes:
         x, y, w, h = n.bbox

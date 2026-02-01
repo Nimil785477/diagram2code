@@ -43,7 +43,10 @@ def generate_matplotlib_script(graph: dict[str, Any], out_path: str | Path) -> P
         lines.append("    ax_b, ay_b, aw_b, ah_b = nb['bbox']")
         lines.append("    x1, y1 = ax_a + aw_a/2, ay_a + ah_a/2")
         lines.append("    x2, y2 = ax_b + aw_b/2, ay_b + ah_b/2")
-        lines.append("    ax.annotate('', xy=(x2, y2), xytext=(x1, y1), arrowprops=dict(arrowstyle='->', lw=2))")
+        lines.append(
+            "    ax.annotate('', xy=(x2, y2), xytext=(x1, y1), "
+            "arrowprops=dict(arrowstyle='->', lw=2))"
+        )
         lines.append("")
 
     # Final formatting

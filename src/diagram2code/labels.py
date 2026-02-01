@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Dict
 
 
-def load_labels(path: str | Path) -> Dict[int, str]:
+def load_labels(path: str | Path) -> dict[int, str]:
     """
     Load labels.json of form: {"0": "Step_1_Load_Data", "1": "Step_2_Train_Model"}
     Returns {0: "...", 1: "..."}.
@@ -15,7 +14,7 @@ def load_labels(path: str | Path) -> Dict[int, str]:
     if not p.exists():
         return {}
     raw = json.loads(p.read_text(encoding="utf-8-sig"))
-    out: Dict[int, str] = {}
+    out: dict[int, str] = {}
     for k, v in raw.items():
         try:
             out[int(k)] = str(v)
@@ -40,7 +39,7 @@ def to_valid_identifier(label: str, fallback: str) -> str:
     s = re.sub(r"[^0-9a-zA-Z_]", "", s)
 
     s = re.sub(r"_+", "_", s)
-    
+
     if not s:
         return fallback
 

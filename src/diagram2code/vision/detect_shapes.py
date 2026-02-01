@@ -1,6 +1,6 @@
 from __future__ import annotations
+
 from pathlib import Path
-from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -8,7 +8,7 @@ import numpy as np
 from diagram2code.schema import Node
 
 
-def _iou(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> float:
+def _iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
     ax, ay, aw, ah = a
     bx, by, bw, bh = b
     a2x, a2y = ax + aw, ay + ah
@@ -22,8 +22,8 @@ def _iou(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> float:
     return inter / union if union > 0 else 0.0
 
 
-def _dedupe_bboxes(bboxes: List[Tuple[int, int, int, int]], iou_thresh: float = 0.7):
-    kept: List[Tuple[int, int, int, int]] = []
+def _dedupe_bboxes(bboxes: list[tuple[int, int, int, int]], iou_thresh: float = 0.7):
+    kept: list[tuple[int, int, int, int]] = []
     for bb in sorted(bboxes, key=lambda x: x[2] * x[3], reverse=True):
         if all(_iou(bb, k) < iou_thresh for k in kept):
             kept.append(bb)
@@ -34,14 +34,14 @@ def detect_rectangles(
     binary_img: np.ndarray,
     min_area: int = 800,
     debug_path: str | Path | None = None,
-) -> List[Node]:
+) -> list[Node]:
     """
     Detect rectangular nodes in a preprocessed (binary) image.
     Expects white shapes on black background (THRESH_BINARY_INV style).
     """
     contours, _ = cv2.findContours(binary_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    bboxes: List[Tuple[int, int, int, int]] = []
+    bboxes: list[tuple[int, int, int, int]] = []
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
@@ -81,7 +81,7 @@ def detect_rectangles(
     return nodes
 
 
-def draw_nodes_on_image(bgr_img: np.ndarray, nodes: List[Node]) -> np.ndarray:
+def draw_nodes_on_image(bgr_img: np.ndarray, nodes: list[Node]) -> np.ndarray:
     out = bgr_img.copy()
     for n in nodes:
         x, y, w, h = n.bbox

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Literal
-
-import json
-
+from typing import Any, Literal
 
 LayoutMode = Literal["auto", "topdown", "spring"]
 
@@ -13,18 +11,20 @@ LayoutMode = Literal["auto", "topdown", "spring"]
 @dataclass(frozen=True)
 class RenderOptions:
     output_path: Path
-    title: Optional[str] = None
+    title: str | None = None
     show_node_ids: bool = True
     dpi: int = 200
     layout: LayoutMode = "auto"
 
 
-def _load_graph(graph_json_path: Path) -> Dict[str, Any]:
+def _load_graph(graph_json_path: Path) -> dict[str, Any]:
     with graph_json_path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def _infer_nodes_and_edges(data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def _infer_nodes_and_edges(
+    data: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Tries common shapes:
       - {"nodes":[...], "edges":[...]}
@@ -46,7 +46,7 @@ def _infer_nodes_and_edges(data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], 
     return [], []
 
 
-def _node_label(node: Dict[str, Any], labels: Optional[Dict[str, str]]) -> str:
+def _node_label(node: dict[str, Any], labels: dict[str, str] | None) -> str:
     # Try label in node first
     for key in ("label", "text", "name"):
         if isinstance(node.get(key), str) and node[key].strip():
@@ -60,7 +60,7 @@ def _node_label(node: Dict[str, Any], labels: Optional[Dict[str, str]]) -> str:
     return str(node_id) if node_id is not None else "node"
 
 
-def _topdown_layout(G) -> Dict[str, Tuple[float, float]]:
+def _topdown_layout(G) -> dict[str, tuple[float, float]]:
     """
     Produce a simple top-down (layered) layout for DAGs.
     Falls back to spring layout if cycles exist.
@@ -71,10 +71,9 @@ def _topdown_layout(G) -> Dict[str, Tuple[float, float]]:
         return nx.spring_layout(G, seed=42)
 
     layers = list(nx.topological_generations(G))
-    pos: Dict[str, Tuple[float, float]] = {}
+    pos: dict[str, tuple[float, float]] = {}
 
     # Space nodes horizontally per layer
-    y = 0.0
     for li, layer in enumerate(layers):
         layer_nodes = list(layer)
         n = len(layer_nodes)
@@ -92,7 +91,7 @@ def _topdown_layout(G) -> Dict[str, Tuple[float, float]]:
     return pos
 
 
-def _choose_layout(G, mode: LayoutMode) -> Dict[str, Tuple[float, float]]:
+def _choose_layout(G, mode: LayoutMode) -> dict[str, tuple[float, float]]:
     import networkx as nx
 
     if mode == "spring":
@@ -107,8 +106,8 @@ def _choose_layout(G, mode: LayoutMode) -> Dict[str, Tuple[float, float]]:
 def render_graph(
     graph_json_path: Path,
     output_path: Path,
-    labels_json_path: Optional[Path] = None,
-    options: Optional[RenderOptions] = None,
+    labels_json_path: Path | None = None,
+    options: RenderOptions | None = None,
 ) -> Path:
     """
     Renders graph.json to an image (PNG or SVG depending on output_path suffix).
@@ -120,13 +119,13 @@ def render_graph(
     Returns output_path.
     """
     # Local imports so base install can work without render deps until flag used.
-    import networkx as nx
     import matplotlib.pyplot as plt
+    import networkx as nx
 
     data = _load_graph(graph_json_path)
     nodes, edges = _infer_nodes_and_edges(data)
 
-    labels: Optional[Dict[str, str]] = None
+    labels: dict[str, str] | None = None
     if labels_json_path and labels_json_path.exists():
         with labels_json_path.open("r", encoding="utf-8-sig") as f:
             labels = json.load(f)
@@ -161,7 +160,7 @@ def render_graph(
     pos = _choose_layout(G, opts.layout)
 
     # Labels
-    node_labels: Dict[str, str] = {}
+    node_labels: dict[str, str] = {}
     for node_id, attrs in G.nodes(data=True):
         lbl = attrs.get("label", node_id)
         if opts.show_node_ids and lbl != node_id:

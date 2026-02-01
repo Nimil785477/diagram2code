@@ -1,16 +1,19 @@
-from pathlib import Path
-from PIL import Image, ImageDraw
 import math
+from pathlib import Path
+
+from PIL import Image, ImageDraw
 
 SIMPLE = Path("tests/fixtures/simple.png")
 OUT = Path("tests/fixtures/branching_arrows.png")
 
 # BBoxes from your earlier graph output (simple.png)
-NODE0 = (50, 124, 50 + 76, 124 + 76)   # red square
-NODE1 = (199, 124, 199 + 76, 124 + 76) # blue square
+NODE0 = (50, 124, 50 + 76, 124 + 76)  # red square
+NODE1 = (199, 124, 199 + 76, 124 + 76)  # blue square
+
 
 def center(x: int, y: int, s: int) -> tuple[int, int]:
     return (x + s // 2, y + s // 2)
+
 
 def draw_arrow(draw: ImageDraw.ImageDraw, p1, p2, width=6, head_len=18, head_w=12):
     # line
@@ -35,6 +38,7 @@ def draw_arrow(draw: ImageDraw.ImageDraw, p1, p2, width=6, head_len=18, head_w=1
 
     draw.polygon([(hx, hy), (left_x, left_y), (right_x, right_y)], fill="black")
 
+
 def main():
     base = Image.open(SIMPLE).convert("RGBA")
     n0 = base.crop(NODE0)
@@ -53,8 +57,8 @@ def main():
     # 2 -> 3 (right)
     # Use the same patches so detector sees familiar nodes.
     pos = {
-        0: (40, 120),   # left
-        1: (210, 40),   # upper mid
+        0: (40, 120),  # left
+        1: (210, 40),  # upper mid
         2: (210, 200),  # lower mid
         3: (400, 120),  # right
     }
@@ -77,7 +81,10 @@ def main():
         dx, dy = (x2 - x1, y2 - y1)
         dist = math.hypot(dx, dy) or 1.0
         ux, uy = dx / dist, dy / dist
-        return (int(x1 + ux * trim), int(y1 + uy * trim)), (int(x2 - ux * trim), int(y2 - uy * trim))
+        return (int(x1 + ux * trim), int(y1 + uy * trim)), (
+            int(x2 - ux * trim),
+            int(y2 - uy * trim),
+        )
 
     edges = [(0, 1), (0, 2), (1, 3), (2, 3)]
     for a, b in edges:
@@ -87,6 +94,7 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     canvas.convert("RGB").save(OUT)
     print("Wrote", OUT)
+
 
 if __name__ == "__main__":
     main()

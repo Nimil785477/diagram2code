@@ -3,14 +3,15 @@
 # Each step receives a shared execution context dict named `ctx`.
 # Add your own state into `ctx` inside any step function.
 
+
 def node_0(ctx):
     # TODO: implement logic here
-    print('node_0 executed')
+    print("node_0 executed")
 
 
 def node_1(ctx):
     # TODO: implement logic here
-    print('node_1 executed')
+    print("node_1 executed")
 
 
 def main():
@@ -19,5 +20,5 @@ def main():
     node_1(ctx)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

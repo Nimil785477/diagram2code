@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from diagram2code.labels import to_valid_identifier
 
 
-def _toposort(nodes: List[int], edges: List[Tuple[int, int]]) -> List[int]:
-    outgoing: Dict[int, List[int]] = {n: [] for n in nodes}
-    indeg: Dict[int, int] = {n: 0 for n in nodes}
+def _toposort(nodes: list[int], edges: list[tuple[int, int]]) -> list[int]:
+    outgoing: dict[int, list[int]] = {n: [] for n in nodes}
+    indeg: dict[int, int] = {n: 0 for n in nodes}
 
     for a, b in edges:
         outgoing.setdefault(a, [])
@@ -21,7 +21,7 @@ def _toposort(nodes: List[int], edges: List[Tuple[int, int]]) -> List[int]:
 
     queue = sorted([n for n in outgoing.keys() if indeg.get(n, 0) == 0])
 
-    order: List[int] = []
+    order: list[int] = []
     while queue:
         n = queue.pop(0)
         order.append(n)
@@ -38,9 +38,9 @@ def _toposort(nodes: List[int], edges: List[Tuple[int, int]]) -> List[int]:
 
 
 def generate_program(
-    graph: Dict[str, Any],
+    graph: dict[str, Any],
     out_path: str | Path,
-    labels: Dict[int, str] | None = None,
+    labels: dict[int, str] | None = None,
 ) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -55,7 +55,7 @@ def generate_program(
     edges = [(e["from"], e["to"]) for e in graph["edges"]]
     order = _toposort(nodes, edges)
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append('"""Auto-generated from diagram2code."""')
     lines.append("")
     lines.append("# Each step receives a shared execution context dict named `ctx`.")
@@ -70,7 +70,6 @@ def generate_program(
         lines.append(f"    print('{fn} executed')")
         lines.append("")
         lines.append("")
-
 
     # main calls them in topological order
     lines.append("def main():")
@@ -90,7 +89,7 @@ def generate_program(
 def generate_from_graph_json(
     graph_json_path: str | Path,
     out_path: str | Path,
-    labels: Dict[int, str] | None = None,
+    labels: dict[int, str] | None = None,
 ) -> Path:
     graph_json_path = Path(graph_json_path)
     graph = json.loads(graph_json_path.read_text(encoding="utf-8"))

@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from diagram2code.cli import main
+
 
 def test_cli_dry_run_writes_nothing(tmp_path: Path):
     rc = main(["tests/fixtures/branching.png", "--out", str(tmp_path), "--dry-run"])

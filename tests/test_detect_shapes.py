@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from diagram2code.vision.preprocess import preprocess_image
 from diagram2code.vision.detect_shapes import detect_rectangles
+from diagram2code.vision.preprocess import preprocess_image
 
 
 def test_detect_rectangles_on_fixture(tmp_path: Path):

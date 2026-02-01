@@ -47,4 +47,3 @@ def test_generate_program_branching(tmp_path: Path):
     assert "Step_2_Left(ctx)" in txt
     assert "Step_2_Right(ctx)" in txt
     assert "Step_3_End(ctx)" in txt
-

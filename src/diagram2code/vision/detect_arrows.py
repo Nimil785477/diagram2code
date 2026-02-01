@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -9,7 +8,7 @@ import numpy as np
 from diagram2code.schema import Node
 
 
-def _point_to_bbox_dist2(px: int, py: int, bbox: Tuple[int, int, int, int]) -> int:
+def _point_to_bbox_dist2(px: int, py: int, bbox: tuple[int, int, int, int]) -> int:
     x, y, w, h = bbox
     cx = min(max(px, x), x + w)
     cy = min(max(py, y), y + h)
@@ -18,14 +17,14 @@ def _point_to_bbox_dist2(px: int, py: int, bbox: Tuple[int, int, int, int]) -> i
     return dx * dx + dy * dy
 
 
-def _nearest_node_id(px: int, py: int, nodes: List[Node]) -> int | None:
+def _nearest_node_id(px: int, py: int, nodes: list[Node]) -> int | None:
     if not nodes:
         return None
     best = min((_point_to_bbox_dist2(px, py, n.bbox), n.id) for n in nodes)
     return best[1]
 
 
-def _center(bbox: Tuple[int, int, int, int]) -> Tuple[int, int]:
+def _center(bbox: tuple[int, int, int, int]) -> tuple[int, int]:
     x, y, w, h = bbox
     return (x + w // 2, y + h // 2)
 
@@ -153,11 +152,11 @@ def _tail_head_from_hull_angles(pts: np.ndarray) -> tuple[np.ndarray, np.ndarray
 
 def detect_arrow_edges(
     binary_img: np.ndarray,
-    nodes: List[Node],
+    nodes: list[Node],
     min_area: int = 80,
     max_area: int = 20000,
     debug_path: str | Path | None = None,
-) -> List[Tuple[int, int]]:
+) -> list[tuple[int, int]]:
     """
     Detect directed edges between nodes.
     Robust when arrows touch nodes by masking node rectangles out first.
@@ -183,8 +182,8 @@ def detect_arrow_edges(
 
     contours, _ = cv2.findContours(work, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    edges: List[Tuple[int, int]] = []
-    debug_segments: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
+    edges: list[tuple[int, int]] = []
+    debug_segments: list[tuple[tuple[int, int], tuple[int, int]]] = []
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
@@ -206,7 +205,9 @@ def detect_arrow_edges(
             continue
 
         edges.append((tail_id, head_id))
-        debug_segments.append(((int(tail_pt[0]), int(tail_pt[1])), (int(head_pt[0]), int(head_pt[1]))))
+        debug_segments.append(
+            ((int(tail_pt[0]), int(tail_pt[1])), (int(head_pt[0]), int(head_pt[1])))
+        )
 
     edges = sorted(set(edges))
 
