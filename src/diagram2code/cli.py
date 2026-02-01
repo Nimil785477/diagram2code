@@ -124,12 +124,43 @@ def _print_graph_summary(nodes, edges, labels_dict: dict[int, str], labels_sourc
             safe_print(f"  - {src} -> {dst}")
 
 
-def main(argv=None) -> int:
+def cmd_benchmark(args) -> int:
+    from diagram2code.benchmark.predictor_backends import make_predictor
+    from diagram2code.benchmark.runner import run_benchmark
+    from diagram2code.benchmark.serialize import write_benchmark_json
+
+    predictor = make_predictor(
+        args.predictor,
+        dataset_path=args.dataset,
+        out_dir=args.predictor_out,
+    )
+
+    result = run_benchmark(dataset_path=args.dataset, predictor=predictor, alpha=args.alpha)
+
+    # stdout summary (stable + easy to grep)
+    agg = result.aggregate
+    print(f"node: p={agg.node.precision:.3f} r={agg.node.recall:.3f} f1={agg.node.f1:.3f}")
+    print(f"edge: p={agg.edge.precision:.3f} r={agg.edge.recall:.3f} f1={agg.edge.f1:.3f}")
+    print(f"direction_accuracy={agg.direction_accuracy:.3f}")
+    print(f"exact_match_rate={agg.exact_match_rate:.3f}")
+    print(f"runtime_mean_s={agg.runtime_mean_s}")
+
+    if args.json is not None:
+        write_benchmark_json(result, args.json)
+        print(f"Wrote JSON: {args.json}")
+
+    return 0
+
+
+def _build_default_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="diagram2code",
         description="Convert simple diagram images into runnable code.",
     )
-    parser.add_argument("input", nargs="?", help="Path to input image")
+
+    # Default mode positional MUST exist here (no subparsers in this parser)
+    parser.add_argument("input", nargs="?", default=None, help="Path to input image")
+
     parser.add_argument("--out", default="outputs", help="Output directory (default: outputs)")
     parser.add_argument("--version", action="store_true", help="Print version")
 
@@ -166,7 +197,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--print-graph",
         action="store_true",
-        help="Print a human-readable summary of detected nodes/edges (and labels if available).",
+        help=("Print a human-readable summary of detected nodes/edges (and labels if available)."),
     )
 
     parser.add_argument(
@@ -189,13 +220,58 @@ def main(argv=None) -> int:
         help="Layout for --render-graph: auto (DAG->topdown), topdown, or spring.",
     )
 
-    # suppress debug artifacts
     parser.add_argument(
         "--no-debug",
         action="store_true",
         help="Do not write debug artifacts (preprocessed/debug images and render_graph.py).",
     )
 
+    return parser
+
+
+def _build_benchmark_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="diagram2code benchmark",
+        description="Run Phase 2 benchmarking on a dataset.",
+    )
+
+    parser.add_argument("--dataset", type=Path, required=True, help="Dataset root folder")
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.35,
+        help="Node match threshold (center distance rule)",
+    )
+    parser.add_argument(
+        "--predictor",
+        choices=["oracle", "vision"],
+        default="vision",
+        help="Prediction backend (oracle is perfect GT-based; vision uses CV pipeline)",
+    )
+    parser.add_argument(
+        "--predictor-out",
+        type=Path,
+        default=None,
+        help="Output dir for predictor artifacts (used by vision predictor).",
+    )
+    parser.add_argument("--json", type=Path, default=None, help="Write results to JSON file")
+
+    return parser
+
+
+def main(argv=None) -> int:
+    if argv is None:
+        import sys
+
+        argv = sys.argv[1:]
+
+    # Dispatch: if first token is "benchmark", parse benchmark args only.
+    if argv[:1] == ["benchmark"]:
+        bench_parser = _build_benchmark_parser()
+        args = bench_parser.parse_args(argv[1:])
+        return cmd_benchmark(args)
+
+    parser = _build_default_parser()
     args = parser.parse_args(argv)
 
     if args.version:
