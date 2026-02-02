@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "name": "example-minimal-v1",
+  "version": "0.1",
+  "splits": {
+    "test": ["0001"]
+  }
+}
