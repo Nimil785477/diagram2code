@@ -125,17 +125,43 @@ def _print_graph_summary(nodes, edges, labels_dict: dict[int, str], labels_sourc
 
 
 def cmd_benchmark(args) -> int:
+    """
+    Phase 3 dataset-first benchmarking entry.
+    Step 3: support dataset references via DatasetRegistry (e.g. example:minimal_v1).
+    Step 4: add split/limit selection (passed through to runner when supported).
+    """
     from diagram2code.benchmark.predictor_backends import make_predictor
     from diagram2code.benchmark.runner import run_benchmark
     from diagram2code.benchmark.serialize import write_benchmark_json
+    from diagram2code.datasets import DatasetRegistry
+
+    # Step 3: dataset ref -> resolved filesystem root
+    dataset_ref = args.dataset
+    dataset_root = DatasetRegistry().resolve_root(dataset_ref)
 
     predictor = make_predictor(
         args.predictor,
-        dataset_path=args.dataset,
+        dataset_path=dataset_root,
         out_dir=args.predictor_out,
     )
 
-    result = run_benchmark(dataset_path=args.dataset, predictor=predictor, alpha=args.alpha)
+    # Step 4: split/limit (runner may or may not support these kwargs yet).
+    # Keep backward compatibility to avoid breaking if runner signature is older.
+    try:
+        result = run_benchmark(
+            dataset_path=dataset_root,
+            predictor=predictor,
+            alpha=args.alpha,
+            split=args.split,
+            limit=args.limit,
+        )
+    except TypeError:
+        if args.split is not None or args.limit is not None:
+            safe_print(
+                "Note: --split/--limit were provided, but the current benchmark runner "
+                "does not accept them yet. Running full dataset without split/limit."
+            )
+        result = run_benchmark(dataset_path=dataset_root, predictor=predictor, alpha=args.alpha)
 
     # stdout summary (stable + easy to grep)
     agg = result.aggregate
@@ -232,10 +258,34 @@ def _build_default_parser() -> argparse.ArgumentParser:
 def _build_benchmark_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="diagram2code benchmark",
-        description="Run Phase 2 benchmarking on a dataset.",
+        description="Run benchmarking on an explicit dataset (Phase 3 dataset-first).",
     )
 
-    parser.add_argument("--dataset", type=Path, required=True, help="Dataset root folder")
+    # Step 3: accept dataset references, not only Paths.
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        required=True,
+        help=(
+            "Dataset reference or root path. Examples: "
+            "example:minimal_v1, /path/to/dataset, my-registered-name"
+        ),
+    )
+
+    # Step 4: split/limit support
+    parser.add_argument(
+        "--split",
+        type=str,
+        default=None,
+        help="Dataset split to evaluate (e.g., test, train, all). Default is runner-defined.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Optional cap on number of samples (deterministic).",
+    )
+
     parser.add_argument(
         "--alpha",
         type=float,
