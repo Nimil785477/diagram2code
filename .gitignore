@@ -19,3 +19,7 @@ d2c-test/
 venv/
 venv_test/
 .env/
+
+# Local datasets / generated outputs
+FlowLearn/
+out/

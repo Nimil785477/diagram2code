@@ -1,44 +1,55 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+import json
+from collections.abc import Iterable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DatasetMetadata:
     schema_version: str
     name: str
     version: str
-    splits: Mapping[str, tuple[str, ...]]  # e.g. {"train": ("0001", ...)}
-    extra: Mapping[str, Any]
+    splits: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DatasetSample:
     sample_id: str
     image_path: Path
     graph_path: Path
-    split: str  # "train" / "test" / "all" etc.
+    split: str = "all"
 
     def load_graph_json(self) -> dict[str, Any]:
-        # Read-only, deterministic
-        import json
+        raw = json.loads(self.graph_path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError(f"Graph JSON must be an object: {self.graph_path}")
+        return raw
 
-        return json.loads(self.graph_path.read_text(encoding="utf-8"))
 
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Dataset:
     root: Path
     metadata: DatasetMetadata
-    _samples: tuple[DatasetSample, ...]
+    _samples: tuple[DatasetSample, ...] = ()
+
+    def splits(self) -> tuple[str, ...]:
+        return tuple(sorted(self.metadata.splits.keys()))
 
     def samples(self, split: str | None = None) -> Iterable[DatasetSample]:
         if split is None:
             return self._samples
-        return (s for s in self._samples if s.split == split)
+        return tuple(s for s in self._samples if s.split == split)
 
-    def splits(self) -> tuple[str, ...]:
-        return tuple(sorted({s.split for s in self._samples}))
+    @property
+    def items(self) -> tuple[DatasetSample, ...]:
+        return self._samples
+
+    def __len__(self) -> int:
+        return len(self._samples)
+
+    def __iter__(self):
+        return iter(self._samples)
