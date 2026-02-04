@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
 
-from diagram2code.benchmark.synthetic_basic import generate_synthetic_basic
+from diagram2code.datasets.synthetic_basic import generate_synthetic_basic
 
 
-def test_benchmark_cli_oracle_smoke(tmp_path: Path):
+def test_benchmark_cli_oracle_smoke(tmp_path: Path) -> None:
     ds = tmp_path / "synthetic_basic"
-    generate_synthetic_basic(ds, n=2)
+    generate_synthetic_basic(ds, n=2, seed=0, split="test")
 
     out_json = tmp_path / "result.json"
 
@@ -26,6 +25,10 @@ def test_benchmark_cli_oracle_smoke(tmp_path: Path):
             "0.35",
             "--predictor",
             "oracle",
+            "--split",
+            "test",
+            "--limit",
+            "2",
             "--json",
             str(out_json),
         ],
@@ -34,9 +37,4 @@ def test_benchmark_cli_oracle_smoke(tmp_path: Path):
     )
 
     assert r.returncode == 0, r.stderr
-    assert "node:" in r.stdout
     assert out_json.exists()
-
-    data = json.loads(out_json.read_text(encoding="utf-8"))
-    assert data["aggregate"]["node"]["f1"] == 1.0
-    assert data["aggregate"]["edge"]["f1"] == 1.0

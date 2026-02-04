@@ -13,6 +13,7 @@ from diagram2code.benchmark.metrics import (
     compute_metrics,
 )
 from diagram2code.benchmark.predictor import PredGraph, Predictor
+from diagram2code.datasets import load_dataset
 
 
 @dataclass(frozen=True)
@@ -43,11 +44,26 @@ def _node_to_dict(n) -> dict:
 
 
 def _edge_to_dict(e) -> dict:
+    """
+    Normalize edges into the benchmark's internal canonical form: {"from","to"}.
+
+    Accepts:
+    - Phase 3 dataset edges: {"source","target"}
+    - legacy edges: {"from","to"}
+    - edge objects with various attribute names
+    """
     if isinstance(e, dict):
-        return e
+        if "from" in e and "to" in e:
+            return {"from": e["from"], "to": e["to"]}
+        if "source" in e and "target" in e:
+            return {"from": e["source"], "to": e["target"]}
+        return e  # fallback; compute_metrics will reveal if something is off
+
     if hasattr(e, "from_id") and hasattr(e, "to_id"):
         return {"from": e.from_id, "to": e.to_id}
-    # If your edge dataclass uses different names, adjust here when traceback tells us.
+    if hasattr(e, "source") and hasattr(e, "target"):
+        return {"from": e.source, "to": e.target}
+
     return {"from": e.from_, "to": e.to}
 
 
@@ -87,31 +103,38 @@ def run_benchmark(
     dataset_path: Path,
     predictor: Predictor,
     alpha: float,
+    split: str | None = None,
+    limit: int | None = None,
 ) -> BenchmarkResult:
     """
-    Library-only benchmark runner (no CLI).
+    Phase 3 dataset-backed benchmark runner.
 
     Pipeline per sample:
-    - Load GT graph from dataset (Step 1)
+    - Load dataset via datasets.load_dataset
+    - Select split deterministically
     - Predict nodes/edges for image
-    - Match pred->gt nodes with alpha (Step 2)
-    - Project pred edges into GT-id space (Step 2)
-    - Compute metrics (Step 3)
-    - Aggregate over dataset
+    - Match pred->gt nodes with alpha
+    - Project pred edges into GT-id space
+    - Compute metrics
+    - Aggregate over samples
     """
-    from diagram2code.benchmark.dataset import load_dataset
-
     dataset = load_dataset(dataset_path)
-    items = dataset if isinstance(dataset, list) else dataset.items  # Dataset(root, name, items)
+
+    if split is None:
+        split = "test" if "test" in dataset.splits() else "all"
 
     per_sample: list[SampleResult] = []
-    for item in items:
-        # DatasetItem fields: image_path, graph_path, gt
-        image_path = item.image_path
-        gt_graph = item.gt
+    count = 0
 
-        gt_nodes_raw = gt_graph["nodes"] if isinstance(gt_graph, dict) else gt_graph.nodes
-        gt_edges_raw = gt_graph["edges"] if isinstance(gt_graph, dict) else gt_graph.edges
+    for sample in dataset.samples(split):
+        if limit is not None and count >= limit:
+            break
+
+        image_path = sample.image_path
+        gt_graph = sample.load_graph_json()
+
+        gt_nodes_raw = gt_graph["nodes"]
+        gt_edges_raw = gt_graph["edges"]
 
         gt_nodes = [_node_to_dict(n) for n in gt_nodes_raw]
         gt_edges = [_edge_to_dict(e) for e in gt_edges_raw]
@@ -135,5 +158,6 @@ def run_benchmark(
         )
 
         per_sample.append(SampleResult(image_path=image_path, metrics=m))
+        count += 1
 
     return BenchmarkResult(samples=per_sample, aggregate=_aggregate(per_sample))

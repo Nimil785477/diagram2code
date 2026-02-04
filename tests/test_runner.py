@@ -3,33 +3,53 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PIL import Image
+import pytest
 
 from diagram2code.benchmark.predictor import PredGraph
 from diagram2code.benchmark.runner import run_benchmark
 
 
 def _write_dataset(tmp_path: Path) -> Path:
-    ds = tmp_path / "ds"
-    (ds / "images").mkdir(parents=True)
-    (ds / "graphs").mkdir(parents=True)
+    root = tmp_path / "ds"
+    images_dir = root / "images"
+    graphs_dir = root / "graphs"
+    images_dir.mkdir(parents=True)
+    graphs_dir.mkdir(parents=True)
 
-    img_path = ds / "images" / "sample.png"
-    Image.new("RGB", (400, 300), "white").save(img_path)
+    # Minimal valid dataset.json
+    (root / "dataset.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "name": "test-ds",
+                "version": "0.1",
+                "splits": {"all": ["0001"]},
+            }
+        ),
+        encoding="utf-8",
+    )
 
-    graph = {
-        "nodes": [
-            {"id": 1, "bbox": [50, 50, 50, 50]},
-            {"id": 2, "bbox": [200, 50, 50, 50]},
-        ],
-        "edges": [{"from": 1, "to": 2}],
-    }
+    # Write a tiny image (we don't actually read pixels in runner tests)
+    (images_dir / "0001.png").write_bytes(b"\x89PNG\r\n\x1a\n")
 
-    (ds / "graphs" / "sample.graph.json").write_text(json.dumps(graph), encoding="utf-8")
-    return ds
+    # Phase 3 graph schema: node ids are strings, edges use source/target
+    (graphs_dir / "0001.json").write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {"id": "1", "bbox": [50, 50, 50, 50]},
+                    {"id": "2", "bbox": [200, 50, 50, 50]},
+                ],
+                "edges": [{"source": "1", "target": "2"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    return root
 
 
-def test_run_benchmark_perfect_prediction(tmp_path: Path):
+def test_run_benchmark_perfect_prediction(tmp_path: Path) -> None:
     ds = _write_dataset(tmp_path)
 
     def predictor(_image_path: Path) -> PredGraph:
@@ -44,19 +64,13 @@ def test_run_benchmark_perfect_prediction(tmp_path: Path):
     result = run_benchmark(dataset_path=ds, predictor=predictor, alpha=0.2)
 
     assert len(result.samples) == 1
-    s = result.samples[0].metrics
-    assert s.node.f1 == 1.0
-    assert s.edge.f1 == 1.0
-    assert s.direction_accuracy == 1.0
-    assert s.exact_match
-
-    agg = result.aggregate
-    assert agg.node.f1 == 1.0
-    assert agg.edge.f1 == 1.0
-    assert agg.exact_match_rate == 1.0
+    assert result.aggregate.node.f1 == 1.0
+    assert result.aggregate.edge.f1 == 1.0
+    assert result.aggregate.direction_accuracy == 1.0
+    assert result.aggregate.exact_match_rate == 1.0
 
 
-def test_run_benchmark_wrong_edge_direction(tmp_path: Path):
+def test_run_benchmark_wrong_edge_direction(tmp_path: Path) -> None:
     ds = _write_dataset(tmp_path)
 
     def predictor(_image_path: Path) -> PredGraph:
@@ -69,9 +83,23 @@ def test_run_benchmark_wrong_edge_direction(tmp_path: Path):
         )
 
     result = run_benchmark(dataset_path=ds, predictor=predictor, alpha=0.2)
-    s = result.samples[0].metrics
 
-    assert s.node.f1 == 1.0
-    assert s.edge.f1 == 0.0
-    assert s.direction_accuracy == 0.0
-    assert not s.exact_match
+    assert len(result.samples) == 1
+    assert result.aggregate.node.f1 == 1.0
+    assert result.aggregate.edge.f1 == 0.0
+    assert result.aggregate.direction_accuracy == 0.0
+    assert result.aggregate.exact_match_rate == 0.0
+
+
+def test_run_benchmark_empty_dataset_raises(tmp_path: Path) -> None:
+    root = tmp_path / "empty"
+    root.mkdir()
+
+    from diagram2code.datasets import DatasetError
+
+    with pytest.raises(DatasetError):
+        run_benchmark(
+            dataset_path=root,
+            predictor=lambda _: PredGraph(nodes=[], edges=[]),
+            alpha=0.2,
+        )
