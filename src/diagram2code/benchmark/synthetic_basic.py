@@ -78,14 +78,16 @@ def _write_sample(
 
 def generate_synthetic_basic(root: Path, *, n: int = 3) -> Path:
     """
-    Generate a simple synthetic dataset under:
+    Generate a simple legacy synthetic dataset under:
       root/
         images/
         graphs/
 
     Notes:
-    - Node ids are ints (matches frozen dataset contract).
+    - Node ids are ints (legacy).
     - Bboxes are [x,y,w,h].
+    - Graph files are named <stem>.graph.json (legacy).
+    - This is kept for backward compatibility with older benchmark code.
     """
     root.mkdir(parents=True, exist_ok=True)
     images_dir = root / "images"

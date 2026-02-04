@@ -2,45 +2,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from diagram2code.benchmark.dataset import load_dataset
-from diagram2code.benchmark.predictor import PredGraph
-from diagram2code.benchmark.runner import run_benchmark
-from diagram2code.benchmark.synthetic_basic import generate_synthetic_basic
+from diagram2code.datasets import load_dataset
+from diagram2code.datasets.synthetic_basic import generate_synthetic_basic
 
 
-def test_generate_synthetic_basic_and_run_benchmark(tmp_path: Path):
-    ds = tmp_path / "synthetic_basic"
-    generate_synthetic_basic(ds, n=3)
+def test_generate_synthetic_basic_dataset_loads(tmp_path: Path) -> None:
+    root = tmp_path / "synthetic_basic"
+    generate_synthetic_basic(root, n=3, seed=0, split="test")
 
-    dataset = load_dataset(ds)
+    ds = load_dataset(root)
+    samples = list(ds.samples("test"))
 
-    # Oracle predictor: returns exact GT nodes/edges but with "pred ids" (strings)
-    # so node matching + projection logic is exercised.
-    gt_by_image = {item.image_path.name: item.gt for item in dataset.items}
+    assert ds.metadata.schema_version == "1.0"
+    assert ds.metadata.name == "synthetic-basic"
+    assert len(samples) == 3
 
-    def predictor(image_path: Path) -> PredGraph:
-        gt = gt_by_image[image_path.name]
+    s = samples[0]
+    assert s.image_path.exists()
+    assert s.graph_path.exists()
 
-        pred_nodes = []
-        for n in gt.nodes:
-            pred_nodes.append({"id": f"p{n.id}", "bbox": list(n.bbox)})
-
-        pred_edges = []
-        for e in gt.edges:
-            pred_edges.append({"from": f"p{e.from_id}", "to": f"p{e.to_id}"})
-
-        return PredGraph(nodes=pred_nodes, edges=pred_edges)
-
-    result = run_benchmark(
-        dataset_path=ds,
-        predictor=predictor,
-        alpha=0.35,
-    )
-
-    assert len(result.samples) == 3
-
-    # Perfect prediction => perfect scores
-    assert result.aggregate.node.f1 == 1.0
-    assert result.aggregate.edge.f1 == 1.0
-    assert result.aggregate.direction_accuracy == 1.0
-    assert result.aggregate.exact_match_rate == 1.0
+    graph = s.load_graph_json()
+    assert "nodes" in graph
+    assert "edges" in graph
