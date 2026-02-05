@@ -27,8 +27,10 @@ def _extract_binary(pre) -> object:
         "mask_img",
         "img",  # last resort if preprocess returns directly named image
     ):
-        if hasattr(pre, attr):
-            return getattr(pre, attr)
+        val = getattr(pre, attr, None)
+        if val is not None:
+            return val
+
 
     # Helpful error for fast diagnosis
     cand = [a for a in dir(pre) if "bin" in a.lower() or "thresh" in a.lower() or a.endswith("img")]
@@ -65,7 +67,7 @@ class VisionPredictor:
             edges = detect_arrow_edges(binary, nodes)
 
             pred_nodes = [{"id": n.id, "bbox": list(n.bbox)} for n in nodes]
-            pred_edges = [{"from": u, "to": v} for (u, v) in edges]
+            pred_edges = [{"from": str(u), "to": str(v)} for (u, v) in edges]
             return PredGraph(nodes=pred_nodes, edges=pred_edges)
 
         finally:

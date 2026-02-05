@@ -2,65 +2,43 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from diagram2code.benchmark.predictor import PredGraph, Predictor
-from diagram2code.datasets import DatasetError, load_dataset
+from diagram2code.benchmark.predictor import Predictor
+from diagram2code.benchmark.predictor_bridge import SamplePredictorAdapter
+from diagram2code.datasets import load_dataset
+from diagram2code.predictors.registry import get_predictor
 
 
-def make_oracle_predictor(dataset_path: Path) -> Predictor:
+def _make_phase4_predictor(name: str, dataset_path: Path) -> Predictor:
     """
-    Oracle predictor for Phase 3 datasets:
-    - loads dataset.json + graphs/*.json
-    - returns PredGraph exactly matching GT (canonical edge keys: from/to)
+    Wrap a Phase-4 predictor (predict(sample)->GraphPrediction) into the legacy
+    benchmark Predictor callable (image_path->PredGraph) using SamplePredictorAdapter.
     """
     ds = load_dataset(dataset_path)
 
-    by_image: dict[Path, PredGraph] = {}
-
+    # Map image_path -> DatasetSample once, reused for all predictions
+    sample_by_image: dict[Path, object] = {}
     for split in ds.splits():
         for sample in ds.samples(split):
-            if sample.image_path in by_image:
-                continue
+            sample_by_image.setdefault(sample.image_path, sample)
 
-            g = sample.load_graph_json()
-            nodes_out: list[dict] = []
-            for n in g.get("nodes", []):
-                # node ids must be strings in Phase 3
-                nid = str(n.get("id"))
-                bbox = n.get("bbox", [0, 0, 0, 0])
-                nodes_out.append({"id": nid, "bbox": list(bbox)})
+    predictor_cls = get_predictor(name)
+    predictor = predictor_cls()  # type: ignore[call-arg]
 
-            edges_out: list[dict] = []
-            for e in g.get("edges", []):
-                # accept both source/target and from/to if present
-                src = e.get("source", e.get("from"))
-                dst = e.get("target", e.get("to"))
-                edges_out.append({"from": str(src), "to": str(dst)})
-
-            by_image[sample.image_path] = PredGraph(nodes=nodes_out, edges=edges_out)
-
-    def predictor(image_path: Path) -> PredGraph:
-        try:
-            return by_image[image_path]
-        except KeyError as exc:
-            raise DatasetError(
-                f"Oracle predictor: image not found in dataset: {image_path}"
-            ) from exc
-
-    return predictor
+    return SamplePredictorAdapter(predictor, sample_by_image)
 
 
 def make_predictor(name: str, dataset_path: Path, out_dir: Path | None) -> Predictor:
     """
     Factory for benchmark predictors.
-    (No new predictors added in Phase 3.)
-    """
-    if name == "oracle":
-        return make_oracle_predictor(dataset_path)
 
+    - vision: legacy CV backend (image->PredGraph)
+    - otherwise: Phase-4 predictor registry (sample->GraphPrediction) bridged to legacy
+    """
     if name == "vision":
         # Existing vision backend (unchanged)
         from diagram2code.benchmark.predictor_vision import make_vision_predictor
 
         return make_vision_predictor(out_dir=out_dir)
 
-    raise ValueError(f"Unknown predictor backend: {name}")
+    # Phase-4 predictor registry (includes "oracle")
+    return _make_phase4_predictor(name, dataset_path)
