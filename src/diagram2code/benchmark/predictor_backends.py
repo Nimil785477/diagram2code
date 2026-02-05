@@ -35,10 +35,8 @@ def make_predictor(name: str, dataset_path: Path, out_dir: Path | None) -> Predi
     - otherwise: Phase-4 predictor registry (sample->GraphPrediction) bridged to legacy
     """
     if name == "vision":
-        # Existing vision backend (unchanged)
-        from diagram2code.benchmark.predictor_vision import make_vision_predictor
-
-        return make_vision_predictor(out_dir=out_dir)
+        from diagram2code.benchmark.predictors_vision import VisionPredictor
+        return VisionPredictor(out_dir=out_dir)
 
     # Phase-4 predictor registry (includes "oracle")
     return _make_phase4_predictor(name, dataset_path)
