@@ -40,3 +40,25 @@ def make_predictor(name: str, dataset_path: Path, out_dir: Path | None) -> Predi
 
     # Phase-4 predictor registry (includes "oracle")
     return _make_phase4_predictor(name, dataset_path)
+
+def available_predictors() -> list[str]:
+    """
+    Predictors available to the benchmark CLI.
+
+    - "vision" is a legacy backend (image->PredGraph) and not part of Phase-4 registry.
+    - all others come from Phase-4 predictor registry.
+    """
+    from diagram2code.predictors.registry import PREDICTOR_REGISTRY
+
+    names = sorted(PREDICTOR_REGISTRY.keys())
+    # include legacy backend
+    if "vision" not in names:
+        names.append("vision")
+    return sorted(names)
+
+def predictor_descriptions() -> dict[str, str]:
+    return {
+        "oracle": "Upper bound (uses ground-truth graph). For pipeline validation.",
+        "heuristic": "Deterministic baseline (non-ML).",
+        "vision": "Legacy CV pipeline (image-based).",
+    }

@@ -124,20 +124,61 @@ def _print_graph_summary(nodes, edges, labels_dict: dict[int, str], labels_sourc
             safe_print(f"  - {src} -> {dst}")
 
 
+def _print_predictors_list() -> None:
+    from diagram2code.benchmark.predictor_backends import (
+        available_predictors,
+        predictor_descriptions,
+    )
+
+    preds = available_predictors()
+    desc = predictor_descriptions()
+
+    safe_print("Available predictors:")
+    for p in preds:
+        extra = f" - {desc[p]}" if p in desc else ""
+        safe_print(f"  - {p}{extra}")
+
+
 def cmd_benchmark(args) -> int:
     """
     Phase 3 dataset-first benchmarking entry.
     Step 3: support dataset references via DatasetRegistry (e.g. example:minimal_v1).
     Step 4: add split/limit selection (passed through to runner when supported).
+    Phase 5.1: CLI usability (list predictors, friendly errors).
     """
-    from diagram2code.benchmark.predictor_backends import make_predictor
+    # Phase 5.1: discovery without needing dataset
+    if getattr(args, "list_predictors", False):
+        _print_predictors_list()
+        return 0
+
+    if not args.dataset:
+        safe_print("Error: --dataset is required (or use --list-predictors).")
+        return 2
+
+    from diagram2code.benchmark.predictor_backends import available_predictors, make_predictor
     from diagram2code.benchmark.runner import run_benchmark
     from diagram2code.benchmark.serialize import write_benchmark_json
-    from diagram2code.datasets import DatasetRegistry
+    from diagram2code.datasets import DatasetRegistry, load_dataset
+
+    # Validate predictor name (even though argparse choices usually enforces this)
+    preds = available_predictors()
+    if args.predictor not in preds:
+        safe_print(f"Error: Unknown predictor '{args.predictor}'.")
+        safe_print(f"Available predictors: {', '.join(preds)}")
+        return 2
 
     # Step 3: dataset ref -> resolved filesystem root
     dataset_ref = args.dataset
     dataset_root = DatasetRegistry().resolve_root(dataset_ref)
+
+    # Step 5.1: validate split early for friendlier error
+    if args.split is not None:
+        ds = load_dataset(dataset_root)
+        splits = ds.splits()
+        if args.split not in splits:
+            safe_print(f"Error: Unknown split '{args.split}'.")
+            safe_print(f"Available splits: {', '.join(splits)}")
+            return 2
 
     predictor = make_predictor(
         args.predictor,
@@ -261,11 +302,20 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
         description="Run benchmarking on an explicit dataset (Phase 3 dataset-first).",
     )
 
+    # Phase 5.1: discovery mode
+    parser.add_argument(
+        "--list-predictors",
+        action="store_true",
+        help="List available predictors and exit.",
+    )
+
     # Step 3: accept dataset references, not only Paths.
+    # NOTE: not required because --list-predictors should work standalone.
     parser.add_argument(
         "--dataset",
         type=str,
-        required=True,
+        required=False,
+        default=None,
         help=(
             "Dataset reference or root path. Examples: "
             "example:minimal_v1, /path/to/dataset, my-registered-name"
@@ -292,12 +342,28 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
         default=0.35,
         help="Node match threshold (center distance rule)",
     )
+
+    # Dynamic predictor choices (Phase 5.1)
+    from diagram2code.benchmark.predictor_backends import (
+        available_predictors,
+        predictor_descriptions,
+    )
+
+    predictor_choices = available_predictors()
+    desc = predictor_descriptions()
+    default_pred = "vision" if "vision" in predictor_choices else predictor_choices[0]
+
     parser.add_argument(
         "--predictor",
-        choices=["oracle", "vision"],
-        default="vision",
-        help="Prediction backend (oracle is perfect GT-based; vision uses CV pipeline)",
+        choices=predictor_choices,
+        default=default_pred,
+        help=(
+            "Prediction backend. "
+            f"Available: {', '.join(predictor_choices)}. "
+            f"Defaults to '{default_pred}'."
+        ),
     )
+
     parser.add_argument(
         "--predictor-out",
         type=Path,
@@ -305,6 +371,15 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
         help="Output dir for predictor artifacts (used by vision predictor).",
     )
     parser.add_argument("--json", type=Path, default=None, help="Write results to JSON file")
+
+    # Attach descriptions (nice-to-have) via epilog
+    lines = ["", "Predictors:"]
+    for p in predictor_choices:
+        if p in desc:
+            lines.append(f"  - {p}: {desc[p]}")
+        else:
+            lines.append(f"  - {p}")
+    parser.epilog = "\n".join(lines)
 
     return parser
 
