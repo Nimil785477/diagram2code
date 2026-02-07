@@ -132,7 +132,6 @@ def write_benchmark_json(result: Any, path: Path) -> None:
         if runtime is not None:
             metrics["runtime_mean_s"] = _safe_float(runtime)
 
-
     run = {
         "timestamp_utc": _now_utc_iso(),
         "python": sys.version.split()[0],

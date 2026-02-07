@@ -139,6 +139,42 @@ def _print_predictors_list() -> None:
         safe_print(f"  - {p}{extra}")
 
 
+def cmd_leaderboard(args) -> int:
+    from glob import glob
+
+    from diagram2code.benchmark.leaderboard import build_rows, write_csv, write_md
+
+    # Expand globs (Windows-safe). Keep deterministic order.
+    paths: list[Path] = []
+    for pat in args.input:
+        matches = glob(pat)
+        if matches:
+            paths.extend(Path(m) for m in matches)
+        else:
+            # Treat as literal path if no matches
+            paths.append(Path(pat))
+
+    # De-dup + stable order
+    paths = sorted({p.resolve() for p in paths})
+
+    missing = [p for p in paths if not p.exists()]
+    if missing:
+        safe_print("Error: some inputs do not exist:")
+        for p in missing:
+            safe_print(f"  - {p}")
+        return 2
+
+    rows = build_rows(paths)
+
+    if args.format == "csv":
+        write_csv(rows, args.out)
+    else:
+        write_md(rows, args.out)
+
+    safe_print(f"Wrote leaderboard: {args.out}")
+    return 0
+
+
 def cmd_benchmark(args) -> int:
     """
     Phase 3 dataset-first benchmarking entry.
@@ -296,6 +332,33 @@ def _build_default_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_leaderboard_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="diagram2code leaderboard",
+        description="Aggregate benchmark result JSON files into a leaderboard table.",
+    )
+    parser.add_argument(
+        "--input",
+        required=True,
+        nargs="+",
+        type=str,
+        help="One or more result JSON paths or glob patterns (e.g., outputs/*.json).",
+    )
+    parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output file path (e.g., leaderboard.csv or LEADERBOARD.md).",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["csv", "md"],
+        default="csv",
+        help="Output format (default: csv).",
+    )
+    return parser
+
+
 def _build_benchmark_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="diagram2code benchmark",
@@ -395,6 +458,12 @@ def main(argv=None) -> int:
         bench_parser = _build_benchmark_parser()
         args = bench_parser.parse_args(argv[1:])
         return cmd_benchmark(args)
+
+    # Dispatch: leaderboard aggregation
+    if argv[:1] == ["leaderboard"]:
+        lb_parser = _build_leaderboard_parser()
+        args = lb_parser.parse_args(argv[1:])
+        return cmd_leaderboard(args)
 
     parser = _build_default_parser()
     args = parser.parse_args(argv)
