@@ -10,6 +10,7 @@ class OraclePredictor:
 
     This is a reference predictor used for pipeline validation and as an upper bound.
     """
+
     name = "oracle"
 
     def predict(self, sample: DatasetSample) -> GraphPrediction:

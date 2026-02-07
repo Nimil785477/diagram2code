@@ -31,7 +31,6 @@ def _extract_binary(pre) -> object:
         if val is not None:
             return val
 
-
     # Helpful error for fast diagnosis
     cand = [a for a in dir(pre) if "bin" in a.lower() or "thresh" in a.lower() or a.endswith("img")]
     raise AttributeError(

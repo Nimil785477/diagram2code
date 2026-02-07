@@ -1,9 +1,9 @@
 {
   "nodes": [
-    {"id": "A"},
-    {"id": "B"}
+    { "id": "A", "bbox": [10, 10, 80, 40] },
+    { "id": "B", "bbox": [200, 10, 80, 40] }
   ],
   "edges": [
-    {"source": "A", "target": "B"}
+    { "source": "A", "target": "B" }
   ]
 }

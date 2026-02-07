@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import json
+import platform
+import sys
 from dataclasses import asdict, is_dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from diagram2code.benchmark.result_schema import SCHEMA_VERSION, BenchmarkResult
 
 
 def _sanitize_for_json(obj: Any) -> Any:
@@ -63,24 +68,87 @@ def _sanitize_for_json(obj: Any) -> Any:
     return str(obj)
 
 
-def write_benchmark_json(result, path: Path) -> None:
-    """
-    Write benchmark results to JSON.
+def _now_utc_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
-    Important: benchmark results may contain nested custom objects (e.g. SampleResult),
-    Paths, and other non-JSON types. We sanitize recursively before dumping.
-    """
-    # Prefer explicit conversion if available
-    if hasattr(result, "to_dict") and callable(result.to_dict):
-        data = result.to_dict()
-    elif hasattr(result, "as_dict") and callable(result.as_dict):
-        data = result.as_dict()
-    elif is_dataclass(result):
-        data = asdict(result)
-    else:
-        data = getattr(result, "__dict__", {"result": str(result)})
 
-    safe = _sanitize_for_json(data)
+def _safe_float(x: Any) -> float:
+    try:
+        return float(x)
+    except Exception:
+        return float("nan")
+
+
+def _get_attr_any(obj: Any, *names: str) -> Any:
+    for n in names:
+        if hasattr(obj, n):
+            return getattr(obj, n)
+    return None
+
+
+def write_benchmark_json(result: Any, path: Path) -> None:
+    """
+    Write benchmark results to JSON using the frozen schema v1 (BenchmarkResult).
+
+    We intentionally do NOT dump the entire raw result object, to avoid schema drift.
+    """
+    agg = _get_attr_any(result, "aggregate")
+
+    # Best-effort stable identifiers
+    dataset_id = _get_attr_any(result, "dataset", "dataset_ref", "dataset_path", "dataset_root")
+    split = _get_attr_any(result, "split")
+    predictor = _get_attr_any(result, "predictor", "predictor_name")
+
+    dataset_str = str(dataset_id) if dataset_id is not None else "unknown"
+    split_str = str(split) if split is not None else "unknown"
+    predictor_str = str(predictor) if predictor is not None else "unknown"
+
+    # num_samples
+    num_samples = _get_attr_any(result, "num_samples")
+    if num_samples is None:
+        samples = _get_attr_any(result, "samples", "per_sample")
+        num_samples = len(samples) if samples is not None else 0
+
+    # metrics
+    metrics: dict[str, float] = {}
+    if agg is not None:
+        node = _get_attr_any(agg, "node")
+        edge = _get_attr_any(agg, "edge")
+
+        if node is not None:
+            metrics["node_precision"] = _safe_float(_get_attr_any(node, "precision"))
+            metrics["node_recall"] = _safe_float(_get_attr_any(node, "recall"))
+            metrics["node_f1"] = _safe_float(_get_attr_any(node, "f1"))
+
+        if edge is not None:
+            metrics["edge_precision"] = _safe_float(_get_attr_any(edge, "precision"))
+            metrics["edge_recall"] = _safe_float(_get_attr_any(edge, "recall"))
+            metrics["edge_f1"] = _safe_float(_get_attr_any(edge, "f1"))
+
+        metrics["direction_accuracy"] = _safe_float(_get_attr_any(agg, "direction_accuracy"))
+        metrics["exact_match_rate"] = _safe_float(_get_attr_any(agg, "exact_match_rate"))
+
+        runtime = _get_attr_any(agg, "runtime_mean_s")
+        if runtime is not None:
+            metrics["runtime_mean_s"] = _safe_float(runtime)
+
+
+    run = {
+        "timestamp_utc": _now_utc_iso(),
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+    }
+
+    out = BenchmarkResult(
+        schema_version=SCHEMA_VERSION,
+        dataset=dataset_str,
+        split=split_str,
+        predictor=predictor_str,
+        num_samples=int(num_samples),
+        metrics=metrics,
+        run=_sanitize_for_json(run),
+    )
+    out.validate()
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(safe, indent=2), encoding="utf-8")
+    path.write_text(json.dumps(out.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")

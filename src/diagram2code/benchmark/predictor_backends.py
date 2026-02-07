@@ -36,10 +36,12 @@ def make_predictor(name: str, dataset_path: Path, out_dir: Path | None) -> Predi
     """
     if name == "vision":
         from diagram2code.benchmark.predictors_vision import VisionPredictor
+
         return VisionPredictor(out_dir=out_dir)
 
     # Phase-4 predictor registry (includes "oracle")
     return _make_phase4_predictor(name, dataset_path)
+
 
 def available_predictors() -> list[str]:
     """
@@ -55,6 +57,7 @@ def available_predictors() -> list[str]:
     if "vision" not in names:
         names.append("vision")
     return sorted(names)
+
 
 def predictor_descriptions() -> dict[str, str]:
     return {
