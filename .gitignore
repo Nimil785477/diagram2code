@@ -23,3 +23,7 @@ venv_test/
 # Local datasets / generated outputs
 FlowLearn/
 out/
+
+# Local developer scratch (never commit)
+.dev/
+
