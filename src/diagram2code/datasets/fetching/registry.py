@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .builtins import built_in_descriptors
 from .descriptors import DatasetDescriptor
 from .errors import DatasetNotFoundError
 
@@ -12,8 +13,7 @@ class RemoteDatasetRegistry:
 
     @classmethod
     def builtins(cls) -> RemoteDatasetRegistry:
-        # Step 6 will populate real descriptors
-        return cls(_items={})
+        return cls(_items=built_in_descriptors())
 
     def list(self) -> list[str]:
         return sorted(self._items.keys())
