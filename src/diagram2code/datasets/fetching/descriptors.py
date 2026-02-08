@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-ArtifactType = Literal["zip", "tar.gz", "file"]
+ArtifactType = Literal["zip", "tar.gz", "file", "hf_snapshot"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,9 +15,11 @@ class Artifact:
     """
 
     url: str
-    sha256: str
+    sha256: str | None = None
     type: ArtifactType = "file"
     size_bytes: int | None = None
+    strip_top_level: bool = True
+    target_subdir: str = "raw"
 
     # Extraction behavior (only relevant for archives)
     strip_top_level: bool = True
