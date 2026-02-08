@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import platform
+import subprocess
 import sys
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
@@ -66,6 +67,32 @@ def _sanitize_for_json(obj: Any) -> Any:
 
     # final fallback: string representation (keeps JSON writing from crashing)
     return str(obj)
+
+
+def _diagram2code_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("diagram2code")
+    except Exception:
+        return ""
+
+
+def _git_sha_short() -> str:
+    """
+    Best-effort git sha from the current working tree.
+    Returns empty string if not in a git repo or git is unavailable.
+    """
+    try:
+        cp = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return cp.stdout.strip()
+    except Exception:
+        return ""
 
 
 def _now_utc_iso() -> str:
@@ -134,6 +161,8 @@ def write_benchmark_json(result: Any, path: Path) -> None:
 
     run = {
         "timestamp_utc": _now_utc_iso(),
+        "diagram2code_version": _diagram2code_version(),
+        "git_sha": _git_sha_short(),
         "python": sys.version.split()[0],
         "platform": platform.platform(),
     }
