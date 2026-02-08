@@ -255,6 +255,34 @@ def cmd_benchmark(args) -> int:
     return 0
 
 
+def cmd_dataset(args) -> int:
+    from diagram2code.datasets.fetching.cli import (
+        dataset_fetch_cmd,
+        dataset_info_cmd,
+        dataset_list_cmd,
+        dataset_path_cmd,
+        dataset_verify_cmd,
+    )
+
+    if args.dataset_cmd == "list":
+        return dataset_list_cmd()
+
+    if args.dataset_cmd == "fetch":
+        return dataset_fetch_cmd(args.name, force=args.force, cache_dir=args.cache_dir)
+
+    if args.dataset_cmd == "path":
+        return dataset_path_cmd(args.name, cache_dir=args.cache_dir)
+
+    if args.dataset_cmd == "info":
+        return dataset_info_cmd(args.name, cache_dir=args.cache_dir)
+
+    if args.dataset_cmd == "verify":
+        return dataset_verify_cmd(args.name, cache_dir=args.cache_dir)
+
+    safe_print("Error: unknown dataset subcommand")
+    return 2
+
+
 def _build_default_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="diagram2code",
@@ -300,7 +328,7 @@ def _build_default_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--print-graph",
         action="store_true",
-        help=("Print a human-readable summary of detected nodes/edges (and labels if available)."),
+        help="Print a human-readable summary of detected nodes/edges (and labels if available).",
     )
 
     parser.add_argument(
@@ -447,6 +475,45 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_dataset_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="diagram2code dataset",
+        description="Manage external datasets (fetch/list/info/path/verify).",
+    )
+    sp = parser.add_subparsers(dest="dataset_cmd", required=True)
+
+    sp.add_parser("list", help="List available remote datasets")
+
+    p_fetch = sp.add_parser("fetch", help="Fetch a dataset into local cache")
+    p_fetch.add_argument("name", help="Dataset name (e.g., flowlearn)")
+    p_fetch.add_argument(
+        "--force", action="store_true", help="Re-download/rebuild dataset cache dir"
+    )
+    p_fetch.add_argument(
+        "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+
+    p_path = sp.add_parser("path", help="Print local path to an installed dataset")
+    p_path.add_argument("name", help="Dataset name")
+    p_path.add_argument(
+        "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+
+    p_info = sp.add_parser("info", help="Print dataset descriptor + install status as JSON")
+    p_info.add_argument("name", help="Dataset name")
+    p_info.add_argument(
+        "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+
+    p_verify = sp.add_parser("verify", help="Verify dataset installation against manifest")
+    p_verify.add_argument("name", help="Dataset name")
+    p_verify.add_argument(
+        "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+
+    return parser
+
+
 def main(argv=None) -> int:
     if argv is None:
         import sys
@@ -464,6 +531,12 @@ def main(argv=None) -> int:
         lb_parser = _build_leaderboard_parser()
         args = lb_parser.parse_args(argv[1:])
         return cmd_leaderboard(args)
+
+    # Dispatch: dataset management
+    if argv[:1] == ["dataset"]:
+        ds_parser = _build_dataset_parser()
+        args = ds_parser.parse_args(argv[1:])
+        return cmd_dataset(args)
 
     parser = _build_default_parser()
     args = parser.parse_args(argv)
