@@ -20,4 +20,9 @@ def test_registry_list_sorted() -> None:
 def test_registry_get_missing_raises() -> None:
     r = RemoteDatasetRegistry.builtins()
     with pytest.raises(DatasetNotFoundError):
-        _ = r.get("flowlearn")
+        _ = r.get("does_not_exist")
+
+
+def test_registry_builtins_includes_flowlearn() -> None:
+    r = RemoteDatasetRegistry.builtins()
+    assert "flowlearn" in r.list()
