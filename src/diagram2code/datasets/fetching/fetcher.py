@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import platform
+import shutil
 import sys
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
+from urllib.error import URLError
 
 from diagram2code import __version__ as diagram2code_version
 
@@ -25,16 +28,25 @@ class Downloader(Protocol):
 @dataclass(frozen=True, slots=True)
 class DefaultDownloader:
     """
-    Placeholder downloader.
+    Default downloader using stdlib urllib.
 
-    We intentionally do NOT implement HTTP here yet to keep Step 4 offline-safe.
-    Step 5 will add a real urllib-based downloader.
+    Supports:
+      - https://, http://
+      - file:///... (useful for offline tests)
     """
 
+    timeout_seconds: float = 60.0
+
     def download_to_path(self, url: str, dest: Path) -> None:
-        raise ArtifactDownloadError(
-            "No downloader configured. Provide a Downloader implementation."
-        )
+        dest.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with urllib.request.urlopen(url, timeout=self.timeout_seconds) as r:
+                # Stream to disk (Windows-friendly)
+                with dest.open("wb") as f:
+                    shutil.copyfileobj(r, f, length=1024 * 1024)
+        except (OSError, URLError, ValueError) as e:
+            raise ArtifactDownloadError(f"Failed to download: {url}") from e
 
 
 def fetch_dataset(
