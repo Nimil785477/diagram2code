@@ -1,13 +1,42 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+from platformdirs import user_cache_dir
+
+_ENV_CACHE_DIR = "DIAGRAM2CODE_CACHE_DIR"
 
 
 def get_cache_root() -> Path:
-    """Implemented in Step 2."""
-    raise NotImplementedError
+    """
+    Return the root cache directory for diagram2code.
+
+    Override with env var:
+      DIAGRAM2CODE_CACHE_DIR=/path/to/cache
+
+    Default:
+      platformdirs.user_cache_dir("diagram2code") / "datasets"
+    """
+    override = os.environ.get(_ENV_CACHE_DIR)
+    if override:
+        return Path(override).expanduser().resolve() / "datasets"
+
+    return Path(user_cache_dir("diagram2code")) / "datasets"
 
 
 def dataset_dir(name: str, version: str) -> Path:
-    """Implemented in Step 2."""
-    raise NotImplementedError
+    """
+    Canonical install directory for a specific dataset version.
+
+    Layout:
+      {cache_root}/{name}/{version}
+    """
+    name = name.strip()
+    version = version.strip()
+    if not name:
+        raise ValueError("dataset name must be non-empty")
+    if not version:
+        raise ValueError("dataset version must be non-empty")
+
+    return get_cache_root() / name / version
