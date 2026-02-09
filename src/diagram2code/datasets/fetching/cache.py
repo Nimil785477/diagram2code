@@ -10,10 +10,16 @@ _ENV_CACHE_DIR = "DIAGRAM2CODE_CACHE_DIR"
 
 def get_cache_root() -> Path:
     """
-    Return the root cache directory for diagram2code.
+    Return the datasets cache root directory for diagram2code.
 
     Override with env var:
       DIAGRAM2CODE_CACHE_DIR=/path/to/cache
+
+    Contract:
+      get_cache_root() returns the directory that contains dataset names.
+
+    Layout:
+      {cache_root}/{name}/{version}
 
     Default:
       platformdirs.user_cache_dir("diagram2code") / "datasets"

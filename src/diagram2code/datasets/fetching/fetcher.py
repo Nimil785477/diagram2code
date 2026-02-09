@@ -67,8 +67,8 @@ def fetch_dataset(
     Downloads artifacts, verifies sha256 (or pinned revision for hf_snapshot),
     writes manifest.json, and returns the dataset dir.
     """
-    root = cache_root if cache_root is not None else get_cache_root()
-    ds_dir = (root / "datasets" / descriptor.name / descriptor.version).resolve()
+    datasets_root = (cache_root / "datasets") if cache_root is not None else get_cache_root()
+    ds_dir = (datasets_root / descriptor.name / descriptor.version).resolve()
 
     if downloader is None:
         downloader = DefaultDownloader()
