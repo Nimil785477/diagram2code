@@ -268,7 +268,9 @@ def cmd_dataset(args) -> int:
         return dataset_list_cmd()
 
     if args.dataset_cmd == "fetch":
-        return dataset_fetch_cmd(args.name, force=args.force, cache_dir=args.cache_dir)
+        return dataset_fetch_cmd(
+            args.name, force=args.force, cache_dir=args.cache_dir, yes=args.yes
+        )
 
     if args.dataset_cmd == "path":
         return dataset_path_cmd(args.name, cache_dir=args.cache_dir)
@@ -492,7 +494,11 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
     p_fetch.add_argument(
         "--cache-dir", type=Path, default=None, help="Override cache root directory"
     )
-
+    p_fetch.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm fetching large datasets (may download many files).",
+    )
     p_path = sp.add_parser("path", help="Print local path to an installed dataset")
     p_path.add_argument("name", help="Dataset name")
     p_path.add_argument(

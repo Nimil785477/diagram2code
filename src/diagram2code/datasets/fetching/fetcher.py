@@ -68,7 +68,7 @@ def fetch_dataset(
     writes manifest.json, and returns the dataset dir.
     """
     root = cache_root if cache_root is not None else get_cache_root()
-    ds_dir = (root / descriptor.name / descriptor.version).resolve()
+    ds_dir = (root / "datasets" / descriptor.name / descriptor.version).resolve()
 
     if downloader is None:
         downloader = DefaultDownloader()

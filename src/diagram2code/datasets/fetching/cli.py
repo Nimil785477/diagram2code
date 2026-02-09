@@ -26,12 +26,21 @@ def dataset_fetch_cmd(
     *,
     force: bool,
     cache_dir: Path | None,
+    yes: bool,
 ) -> int:
     reg = RemoteDatasetRegistry.builtins()
     try:
         desc = reg.get(name)
     except DatasetNotFoundError as e:
         print(str(e))
+        return 2
+
+    # Safety: prevent accidental huge downloads unless explicitly confirmed
+    if any(a.type == "hf_snapshot" for a in desc.artifacts) and not yes:
+        print(
+            "Refusing to fetch without confirmation: this dataset may be large.\n"
+            f"Re-run with: diagram2code dataset fetch {name} --yes"
+        )
         return 2
 
     try:
@@ -128,7 +137,14 @@ def dataset_verify_cmd(name: str, *, cache_dir: Path | None) -> int:
     # Step 8 can upgrade this to full artifact re-hash verification.
     ok = (m.name == desc.name) and (m.version == desc.version)
     if not ok:
-        print("Manifest does not match descriptor.")
+        print(
+            "Manifest does not match descriptor.\n"
+            f"manifest: name={m.name!r} version={m.version!r}\n"
+            f"expected: name={desc.name!r} version={desc.version!r}"
+        )
+        return 2
+    if not p.exists():
+        print(f"Dataset not installed: {name}")
         return 2
 
     print("OK")
