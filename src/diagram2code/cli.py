@@ -181,6 +181,7 @@ def cmd_benchmark(args) -> int:
     Step 3: support dataset references via DatasetRegistry (e.g. example:minimal_v1).
     Step 4: add split/limit selection (passed through to runner when supported).
     Phase 5.1: CLI usability (list predictors, friendly errors).
+    Phase 6.1: support remote registry datasets (fetch-on-missing, guarded).
     """
     # Phase 5.1: discovery without needing dataset
     if getattr(args, "list_predictors", False):
@@ -203,9 +204,60 @@ def cmd_benchmark(args) -> int:
         safe_print(f"Available predictors: {', '.join(preds)}")
         return 2
 
-    # Step 3: dataset ref -> resolved filesystem root
+    # Step 3 / Phase 6: dataset ref -> resolved filesystem root
     dataset_ref = args.dataset
-    dataset_root = DatasetRegistry().resolve_root(dataset_ref)
+    p = Path(dataset_ref)
+
+    # Case 1: explicit local path
+    if p.exists():
+        dataset_root = p
+
+    # Case 2: internal registry refs (Phase 3), e.g. example:minimal_v1
+    elif dataset_ref.startswith("example:"):
+        dataset_root = DatasetRegistry().resolve_root(dataset_ref)
+
+    # Case 3: remote datasets (Phase 6) by name, e.g. tiny_remote_v1 / flowlearn
+    else:
+        from diagram2code.datasets.fetching.cache import dataset_dir
+        from diagram2code.datasets.fetching.errors import (
+            DatasetFetchError,
+            DatasetNotFoundError,
+        )
+        from diagram2code.datasets.fetching.fetcher import fetch_dataset
+        from diagram2code.datasets.fetching.registry import RemoteDatasetRegistry
+
+        reg = RemoteDatasetRegistry.builtins()
+        try:
+            desc = reg.get(dataset_ref)
+        except DatasetNotFoundError as e:
+            safe_print(str(e))
+            return 2
+
+        ds_dir = dataset_dir(desc.name, desc.version)
+
+        if not ds_dir.exists():
+            if not args.fetch_missing:
+                safe_print(f"Dataset not installed: {dataset_ref}")
+                safe_print(f"Install it with: diagram2code dataset fetch {dataset_ref}")
+                safe_print("Or re-run benchmark with: --fetch-missing [--yes]")
+                return 2
+
+            # Safety: prevent accidental huge downloads unless explicitly confirmed
+            if any(a.type == "hf_snapshot" for a in desc.artifacts) and not args.yes:
+                safe_print(
+                    "Refusing to fetch without confirmation: this dataset may be large.\n"
+                    f"Re-run with: diagram2code benchmark --dataset {dataset_ref} "
+                    "--fetch-missing --yes"
+                )
+                return 2
+
+            try:
+                fetch_dataset(desc, cache_root=None, force=False)
+            except DatasetFetchError as e:
+                safe_print(str(e))
+                return 2
+
+        dataset_root = ds_dir
 
     # Step 5.1: validate split early for friendlier error
     if args.split is not None:
@@ -434,6 +486,18 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.35,
         help="Node match threshold (center distance rule)",
+    )
+
+    # Phase 6: optionally fetch registry datasets if missing (guarded)
+    parser.add_argument(
+        "--fetch-missing",
+        action="store_true",
+        help="If a registry dataset is not installed, fetch it automatically (may download files).",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm fetching large datasets (used with --fetch-missing for HF snapshots).",
     )
 
     # Dynamic predictor choices (Phase 5.1)
