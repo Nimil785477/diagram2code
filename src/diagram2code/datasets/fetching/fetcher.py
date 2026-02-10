@@ -22,6 +22,7 @@ from .manifest import (
     ManifestArtifact,
     write_manifest,
 )
+from .util import format_bytes
 
 
 class Downloader(Protocol):
@@ -247,9 +248,14 @@ def _hf_snapshot_download(repo_id: str, revision: str, dest_dir: Path) -> None:
 
     Implemented via huggingface_hub.snapshot_download, but imported lazily
     so core installs don't require it unless hf_snapshot is used.
+
+    Adds best-effort reporting:
+      - number of files
+      - estimated total bytes (when available)
+      - uses HF progress bars when supported
     """
     try:
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import HfApi, snapshot_download
     except Exception as e:  # pragma: no cover
         raise ArtifactDownloadError(
             "huggingface_hub is required for hf_snapshot artifacts. "
@@ -258,9 +264,58 @@ def _hf_snapshot_download(repo_id: str, revision: str, dest_dir: Path) -> None:
 
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    snapshot_download(
-        repo_id=repo_id,
-        repo_type="dataset",
-        revision=revision,
-        local_dir=str(dest_dir),
-    )
+    # Best-effort: repo metadata (may be unavailable for large repos / older hub versions).
+    num_files: int | None = None
+    total_bytes: int | None = None
+    try:
+        api = HfApi()
+        info = api.repo_info(
+            repo_id=repo_id,
+            repo_type="dataset",
+            revision=revision,
+            files_metadata=True,
+        )
+        siblings = getattr(info, "siblings", None) or []
+        num_files = len(siblings)
+        sizes = [getattr(s, "size", None) for s in siblings]
+        size_ints = [s for s in sizes if isinstance(s, int)]
+        total_bytes = sum(size_ints) if size_ints else None
+    except Exception:
+        # Keep downloads working even if metadata lookup fails.
+        num_files = None
+        total_bytes = None
+
+    if num_files is None:
+        print(f"Fetching HF snapshot: {repo_id}@{revision}")
+    else:
+        print(
+            "Fetching HF snapshot: "
+            f"{repo_id}@{revision}\n"
+            f"Files: {num_files} | Total: {format_bytes(total_bytes)}"
+        )
+
+    # Optional: pass tqdm class if available, but don't require it.
+    tqdm_class = None
+    try:
+        from tqdm.auto import tqdm as tqdm_auto
+
+        tqdm_class = tqdm_auto
+    except Exception:
+        tqdm_class = None
+
+    # Some huggingface_hub versions may not accept tqdm_class; be backward compatible.
+    try:
+        snapshot_download(
+            repo_id=repo_id,
+            repo_type="dataset",
+            revision=revision,
+            local_dir=str(dest_dir),
+            tqdm_class=tqdm_class,
+        )
+    except TypeError:
+        snapshot_download(
+            repo_id=repo_id,
+            repo_type="dataset",
+            revision=revision,
+            local_dir=str(dest_dir),
+        )
