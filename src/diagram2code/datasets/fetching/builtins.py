@@ -40,7 +40,7 @@ def built_in_descriptors() -> dict[str, DatasetDescriptor]:
                 Artifact(
                     # Small, stable text file (used only for fetch verification)
                     url=(
-                        "https://raw.githubusercontent.com/Nimil785477/diagram2code/main/README.md"
+                        "https://raw.githubusercontent.com/Nimil785477/diagram2code/1b1f30d9b276a31bff410f670c7bfa987d1f7993/README.md"
                     ),
                     # TODO: replace with actual sha256 (see instructions)
                     sha256="c0e454f9541055c14dc1a124915d5c19be0d40bc268feff0ff401647fbfb34c6",
