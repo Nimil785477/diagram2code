@@ -309,6 +309,7 @@ def cmd_benchmark(args) -> int:
 
 def cmd_dataset(args) -> int:
     from diagram2code.datasets.fetching.cli import (
+        dataset_clean_cmd,  # NEW
         dataset_fetch_cmd,
         dataset_info_cmd,
         dataset_list_cmd,
@@ -316,6 +317,13 @@ def cmd_dataset(args) -> int:
         dataset_verify_cmd,
     )
 
+    if args.dataset_cmd == "clean":
+        return dataset_clean_cmd(
+            args.name,
+            all_versions=args.all,
+            yes=args.yes,
+            cache_dir=args.cache_dir,
+        )
     if args.dataset_cmd == "list":
         return dataset_list_cmd()
 
@@ -578,6 +586,21 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
     p_verify = sp.add_parser("verify", help="Verify dataset installation against manifest")
     p_verify.add_argument("name", help="Dataset name")
     p_verify.add_argument(
+        "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+    p_clean = sp.add_parser("clean", help="Remove an installed dataset from cache")
+    p_clean.add_argument("name", help="Dataset name")
+    p_clean.add_argument(
+        "--all",
+        action="store_true",
+        help="Remove all installed versions of this dataset",
+    )
+    p_clean.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm removal without prompt",
+    )
+    p_clean.add_argument(
         "--cache-dir", type=Path, default=None, help="Override cache root directory"
     )
 

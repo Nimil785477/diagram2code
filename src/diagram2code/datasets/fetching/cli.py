@@ -149,3 +149,75 @@ def dataset_verify_cmd(name: str, *, cache_dir: Path | None) -> int:
 
     print("OK")
     return 0
+
+
+def dataset_clean_cmd(
+    name: str,
+    *,
+    all_versions: bool,
+    yes: bool,
+    cache_dir: Path | None,
+) -> int:
+    from diagram2code.datasets.fetching.cache import get_cache_root
+    from diagram2code.datasets.fetching.errors import DatasetNotFoundError
+    from diagram2code.datasets.fetching.registry import RemoteDatasetRegistry
+
+    reg = RemoteDatasetRegistry.builtins()
+    try:
+        desc = reg.get(name)
+    except DatasetNotFoundError as e:
+        print(str(e))
+        return 2
+
+    datasets_root = (cache_dir / "datasets") if cache_dir else get_cache_root()
+
+    targets: list[Path] = []
+
+    if all_versions:
+        root = datasets_root / desc.name
+        if root.exists():
+            targets = [p for p in root.iterdir() if p.is_dir()]
+    else:
+        p = datasets_root / desc.name / desc.version
+        if p.exists():
+            targets = [p]
+
+    if not targets:
+        print(f"No installed dataset found for: {name}")
+        return 0
+
+    print("The following dataset directories will be removed:")
+    for t in targets:
+        print(f"  - {t}")
+
+    if not yes:
+        resp = input("Proceed? [y/N]: ").strip().lower()
+        if resp not in {"y", "yes"}:
+            print("Aborted.")
+            return 1
+
+    for t in targets:
+        _rm_tree(t)
+
+    if all_versions:
+        dataset_root = datasets_root / desc.name
+        try:
+            if dataset_root.exists() and not any(dataset_root.iterdir()):
+                dataset_root.rmdir()
+        except OSError:
+            pass
+
+    print(f"Removed {len(targets)} dataset directory(s).")
+    return 0
+
+
+def _rm_tree(path: Path) -> None:
+    # Windows-friendly recursive delete
+    if not path.exists():
+        return
+    for p in sorted(path.rglob("*"), reverse=True):
+        if p.is_file() or p.is_symlink():
+            p.unlink()
+        elif p.is_dir():
+            p.rmdir()
+    path.rmdir()
