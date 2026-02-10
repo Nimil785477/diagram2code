@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -113,7 +114,7 @@ def dataset_info_cmd(name: str, *, cache_dir: Path | None) -> int:
     return 0
 
 
-def dataset_verify_cmd(name: str, *, cache_dir: Path | None) -> int:
+def dataset_verify_cmd(name: str, *, cache_dir: Path | None, deep: bool = False) -> int:
     reg = RemoteDatasetRegistry.builtins()
     try:
         desc = reg.get(name)
@@ -133,8 +134,7 @@ def dataset_verify_cmd(name: str, *, cache_dir: Path | None) -> int:
         print(str(e))
         return 2
 
-    # Minimal verification: manifest exists + matches dataset identity.
-    # Step 8 can upgrade this to full artifact re-hash verification.
+    # Identity check (existing behavior)
     ok = (m.name == desc.name) and (m.version == desc.version)
     if not ok:
         print(
@@ -146,6 +146,61 @@ def dataset_verify_cmd(name: str, *, cache_dir: Path | None) -> int:
     if not p.exists():
         print(f"Dataset not installed: {name}")
         return 2
+
+    # Ensure manifest artifacts match descriptor artifacts (URL + sha256/revision)
+    manifest_by_url = {a.url: a for a in m.artifacts}
+    for a in desc.artifacts:
+        ma = manifest_by_url.get(a.url)
+        if ma is None:
+            print(f"Missing artifact in manifest: {a.url}")
+            return 2
+        if a.sha256 is not None and ma.sha256 != a.sha256:
+            print(
+                "Artifact sha256 mismatch.\n"
+                f"url: {a.url}\n"
+                f"manifest: {ma.sha256}\n"
+                f"expected: {a.sha256}"
+            )
+            return 2
+
+    if not deep:
+        print("OK")
+        return 0
+
+    # Deep verification:
+    # - file artifacts: re-hash and compare
+    # - hf_snapshot: ensure directory exists and is non-empty
+    for a in desc.artifacts:
+        ma = manifest_by_url[a.url]
+        local_path = p / Path(ma.local_path)
+
+        if a.type == "hf_snapshot":
+            if not local_path.exists() or not local_path.is_dir():
+                print(f"Missing snapshot directory: {local_path}")
+                return 2
+            try:
+                has_any = any(local_path.rglob("*"))
+            except OSError:
+                has_any = False
+            if not has_any:
+                print(f"Snapshot directory is empty: {local_path}")
+                return 2
+            continue
+
+        # Default: treat as file artifact
+        if not local_path.exists() or not local_path.is_file():
+            print(f"Missing artifact file: {local_path}")
+            return 2
+
+        expected = a.sha256
+        if expected is None:
+            print(f"Missing expected sha256 for artifact: {a.url}")
+            return 2
+
+        got = _sha256_file(local_path)
+        if got != expected:
+            print(f"sha256 mismatch.\npath: {local_path}\nexpected: {expected}\ngot: {got}")
+            return 2
 
     print("OK")
     return 0
@@ -221,3 +276,11 @@ def _rm_tree(path: Path) -> None:
         elif p.is_dir():
             p.rmdir()
     path.rmdir()
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()

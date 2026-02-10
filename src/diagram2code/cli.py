@@ -339,7 +339,7 @@ def cmd_dataset(args) -> int:
         return dataset_info_cmd(args.name, cache_dir=args.cache_dir)
 
     if args.dataset_cmd == "verify":
-        return dataset_verify_cmd(args.name, cache_dir=args.cache_dir)
+        return dataset_verify_cmd(args.name, cache_dir=args.cache_dir, deep=args.deep)
 
     safe_print("Error: unknown dataset subcommand")
     return 2
@@ -587,6 +587,11 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
     p_verify.add_argument("name", help="Dataset name")
     p_verify.add_argument(
         "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+    p_verify.add_argument(
+        "--deep",
+        action="store_true",
+        help="Perform deep verification (rehash file artifacts, check snapshot dirs).",
     )
     p_clean = sp.add_parser("clean", help="Remove an installed dataset from cache")
     p_clean.add_argument("name", help="Dataset name")
