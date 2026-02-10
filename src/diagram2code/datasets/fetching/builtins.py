@@ -43,7 +43,7 @@ def built_in_descriptors() -> dict[str, DatasetDescriptor]:
                         "https://raw.githubusercontent.com/Nimil785477/diagram2code/main/README.md"
                     ),
                     # TODO: replace with actual sha256 (see instructions)
-                    sha256="69e681764d7bda2ed7fed951614333bd4ea52cc3ff6de1a300d5965418bb0626",
+                    sha256="c0e454f9541055c14dc1a124915d5c19be0d40bc268feff0ff401647fbfb34c6",
                     type="file",
                     target_subdir="raw",
                 ),
