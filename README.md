@@ -22,7 +22,7 @@ Convert simple flowchart-style diagrams into runnable Python programs.
 5. [Generated Files](#generated-files)
 6. [Examples](#examples)
 7. [Limitations](#limitations)
-
+8. [Datasets, Predictors & Benchmarks](#datasets-predictors--benchmarks)
 ---
 
 ## Installation
@@ -131,6 +131,7 @@ In dry-run mode:
 - no files are written
 - OCR does not write labels.json
 - export bundles are not created
+
 
 ## Using Labels
 You can provide custom labels for nodes using a JSON file
@@ -270,6 +271,48 @@ If OCR is unavailable, the pipeline still works and labels default to empty.
 - Complex curves, diagonals, or overlapping arrows may fail
 - No text extraction from inside shapes
 - Not intended for UML, BPMN, or hand-drawn diagrams
+
+## Datasets, Predictors & Benchmarks
+
+Beyond image-to-code conversion, `diagram2code` includes a **dataset-backed
+benchmarking system** for evaluating different predictors in a reproducible way.
+
+This functionality is optional and intended for:
+- experimentation
+- research
+- comparative evaluation
+
+### Core concepts
+- **Datasets** define inputs, ground truth graphs, and splits
+- **Predictors** generate graph predictions from inputs
+- **Benchmarks** compute node/edge metrics and aggregate results
+
+### Documentation entry points
+
+**Datasets**
+- Overview: `docs/datasets/OVERVIEW.md`
+- Fetching & cache layout: `docs/datasets/FETCHING.md`
+- Adapter authoring: `docs/datasets/ADAPTER_GUIDE.md`
+- FlowLearn reference: `docs/datasets/FLOWLEARN.md`
+- Dataset contract: `docs/datasets/PHASE_3_CONTRACT.md`
+
+**Predictors**
+- Predictor interface: `docs/predictors/PREDICTOR_CONTRACT.md`
+- Oracle predictor: `docs/predictors/ORACLE.md`
+- Heuristic baseline: `docs/predictors/HEURISTIC.md`
+
+**Benchmarks**
+- Result schema: `docs/benchmarks/RESULT_SCHEMA.md`
+- Reproducibility checklist: `docs/benchmarks/REPRODUCIBILITY.md`
+- Leaderboard format: `docs/benchmarks/LEADERBOARD_FORMAT.md`
+
+### Minimal evaluation example
+
+```bash
+diagram2code dataset list
+diagram2code dataset fetch tiny_remote_v1 --yes
+diagram2code benchmark --dataset tiny_remote_v1 --predictor oracle
+```
 
 ## Demo
 
