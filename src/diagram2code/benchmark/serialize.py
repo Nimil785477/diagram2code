@@ -113,11 +113,22 @@ def _get_attr_any(obj: Any, *names: str) -> Any:
     return None
 
 
-def write_benchmark_json(result: Any, path: Path) -> None:
+def write_benchmark_json(
+    result: Any,
+    path: Path,
+    *,
+    extra_run_meta: dict[str, Any] | None = None,
+) -> None:
     """
     Write benchmark results to JSON using the frozen schema v1 (BenchmarkResult).
 
-    We intentionally do NOT dump the entire raw result object, to avoid schema drift.
+    `extra_run_meta` is merged into the `run` block (keys with None values are ignored).
+    This is the intended extension point for CLI-provided provenance like:
+      - cli
+      - dataset_ref
+      - dataset_root
+      - predictor_out
+      - dataset_manifest_sha256
     """
     agg = _get_attr_any(result, "aggregate")
 
@@ -159,13 +170,17 @@ def write_benchmark_json(result: Any, path: Path) -> None:
         if runtime is not None:
             metrics["runtime_mean_s"] = _safe_float(runtime)
 
-    run = {
+    run: dict[str, Any] = {
         "timestamp_utc": _now_utc_iso(),
         "diagram2code_version": _diagram2code_version(),
         "git_sha": _git_sha_short(),
         "python": sys.version.split()[0],
         "platform": platform.platform(),
     }
+
+    if extra_run_meta:
+        # ignore None values so callers can pass optional fields cleanly
+        run.update({k: v for k, v in extra_run_meta.items() if v is not None})
 
     out = BenchmarkResult(
         schema_version=SCHEMA_VERSION,
@@ -179,4 +194,7 @@ def write_benchmark_json(result: Any, path: Path) -> None:
     out.validate()
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(out.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(out.to_dict(), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
