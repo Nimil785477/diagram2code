@@ -50,3 +50,8 @@ def test_cli_dataset_fetch_tiny_remote(tmp_path: Path) -> None:
     p_verify = _run("dataset", "verify", "tiny_remote_v1", "--cache-dir", str(tmp_path))
     assert p_verify.returncode == 0, p_verify.stdout + p_verify.stderr
     # verify may be silent on success; exit code is the contract
+
+
+def test_cli_dataset_info_installed_only_fails_when_not_installed(tmp_path: Path) -> None:
+    p = _run("dataset", "info", "flowlearn", "--installed", "--cache-dir", str(tmp_path))
+    assert p.returncode == 2

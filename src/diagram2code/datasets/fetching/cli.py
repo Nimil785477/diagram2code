@@ -76,7 +76,7 @@ def dataset_path_cmd(name: str, *, cache_dir: Path | None) -> int:
     return 0
 
 
-def dataset_info_cmd(name: str, *, cache_dir: Path | None) -> int:
+def dataset_info_cmd(name: str, *, cache_dir: Path | None, installed_only: bool = False) -> int:
     reg = RemoteDatasetRegistry.builtins()
     try:
         desc = reg.get(name)
@@ -91,6 +91,9 @@ def dataset_info_cmd(name: str, *, cache_dir: Path | None) -> int:
     )
 
     installed = p.exists()
+    if installed_only and not installed:
+        print(f"Dataset not installed: {name}")
+        return 2
 
     info = {
         "name": desc.name,

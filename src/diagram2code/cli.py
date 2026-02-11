@@ -301,7 +301,23 @@ def cmd_benchmark(args) -> int:
     print(f"runtime_mean_s={agg.runtime_mean_s}")
 
     if args.json is not None:
-        write_benchmark_json(result, args.json)
+        extra = {
+            "cli": "diagram2code benchmark",
+            "dataset_ref": dataset_ref,
+            "dataset_root": str(dataset_root),
+            "predictor": args.predictor,
+            "predictor_out": str(args.predictor_out) if args.predictor_out else None,
+        }
+
+        manifest_path = Path(dataset_root) / "manifest.json"
+        if manifest_path.exists():
+            import hashlib
+
+            extra["dataset_manifest_sha256"] = hashlib.sha256(
+                manifest_path.read_bytes()
+            ).hexdigest()
+
+        write_benchmark_json(result, args.json, extra_run_meta=extra)
         print(f"Wrote JSON: {args.json}")
 
     return 0
@@ -316,6 +332,9 @@ def cmd_dataset(args) -> int:
         dataset_path_cmd,
         dataset_verify_cmd,
     )
+
+    if args.dataset_cmd == "info":
+        return dataset_info_cmd(args.name, cache_dir=args.cache_dir, installed_only=args.installed)
 
     if args.dataset_cmd == "clean":
         return dataset_clean_cmd(
@@ -581,6 +600,11 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
     p_info.add_argument("name", help="Dataset name")
     p_info.add_argument(
         "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+    p_info.add_argument(
+        "--installed",
+        action="store_true",
+        help="Show only datasets installed in the cache.",
     )
 
     p_verify = sp.add_parser("verify", help="Verify dataset installation against manifest")
