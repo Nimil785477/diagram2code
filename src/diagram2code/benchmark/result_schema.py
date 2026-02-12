@@ -4,7 +4,8 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "1.1"
+SUPPORTED_SCHEMA_VERSIONS = {"1", "1.1"}
 
 
 @dataclass(frozen=True)

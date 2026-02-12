@@ -114,7 +114,7 @@ def test_dataset_verify_deep_hash_mismatch(monkeypatch, tmp_path):
     (ds_root / "manifest.json").write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 1.1,
                 "name": "testds",
                 "version": "1",
                 "fetched_at_utc": "2026-02-10T00:00:00Z",
