@@ -70,7 +70,7 @@ def test_benchmark_fetch_missing_registry_dataset(monkeypatch, tmp_path, capsys)
         manifest_path.write_text(
             json.dumps(
                 {
-                    "schema_version": 1,
+                    "schema_version": 1.1,
                     "name": desc.name,
                     "version": desc.version,
                     "fetched_at_utc": "2026-02-10T00:00:00Z",

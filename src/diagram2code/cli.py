@@ -175,7 +175,28 @@ def cmd_leaderboard(args) -> int:
     return 0
 
 
+def cmd_benchmark_info(args) -> int:
+    from diagram2code.benchmark.info import (
+        BenchmarkInfoError,
+        format_result_summary,
+        load_result_json,
+    )
+
+    try:
+        data = load_result_json(args.result_json)
+    except BenchmarkInfoError as e:
+        safe_print(f"Error: {e}")
+        return 2
+
+    print(format_result_summary(data))
+    return 0
+
+
 def cmd_benchmark(args) -> int:
+    # Subcommand dispatch: `diagram2code benchmark info <result.json>`
+    if getattr(args, "benchmark_action", None) == "info":
+        return cmd_benchmark_info(args)
+
     """
     Phase 3 dataset-first benchmarking entry.
     Step 3: support dataset references via DatasetRegistry (e.g. example:minimal_v1).
@@ -473,7 +494,11 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
         prog="diagram2code benchmark",
         description="Run benchmarking on an explicit dataset (Phase 3 dataset-first).",
     )
+    # Subcommands under `benchmark` (keeps `benchmark --dataset ...` working)
+    sp = parser.add_subparsers(dest="benchmark_action", required=False)
 
+    p_info = sp.add_parser("info", help="Print a summary of a benchmark result JSON")
+    p_info.add_argument("result_json", type=Path, help="Path to a benchmark result JSON file")
     # Phase 5.1: discovery mode
     parser.add_argument(
         "--list-predictors",
