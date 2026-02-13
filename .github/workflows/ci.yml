@@ -11,6 +11,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      # Deterministic benchmark artifacts (Step 1)
+      DIAGRAM2CODE_BENCHMARK_TIMESTAMP_UTC: "1970-01-01T00:00:00Z"
+      DIAGRAM2CODE_SEED: "0"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +32,26 @@ jobs:
           sudo apt-get install -y tesseract-ocr
 
       - name: Install Python deps
-        run: pip install -e ".[dev]"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: |
+          ruff format --check .
+          ruff check .
 
       - name: Run tests
         run: pytest -q
+
+      - name: Benchmark smoke (example:minimal_v1 + oracle)
+        run: |
+          mkdir -p outputs
+          python -m diagram2code benchmark --dataset example:minimal_v1 --predictor oracle --json outputs/ci_benchmark.json
+
+      - name: Upload benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-benchmark
+          path: outputs/ci_benchmark.json
+          if-no-files-found: error
