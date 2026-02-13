@@ -313,6 +313,22 @@ diagram2code dataset list
 diagram2code dataset fetch tiny_remote_v1 --yes
 diagram2code benchmark --dataset tiny_remote_v1 --predictor oracle
 ```
+### Inspect Benchmark Results
+
+```bash
+diagram2code benchmark info outputs/result.json
+```
+Prints a concise summary of metrics and provenance.
+### Strict Manifest Enforcement
+
+To require a dataset to have a valid `manifest.json`:
+
+```bash
+diagram2code benchmark \
+  --dataset flowlearn \
+  --predictor oracle \
+  --fail-on-missing-manifest
+```
 
 ## Demo
 
