@@ -1,6 +1,19 @@
 # Benchmark Result JSON Schema (v1)
 
 This document freezes the JSON format written by `diagram2code benchmark --json ...`.
+## Schema Version
+
+Current schema version: `1.1`
+
+Version history:
+
+- `1`   — Initial frozen benchmark result contract.
+- `1.1` — Added improved CLI provenance handling and stricter reproducibility support
+          (top-level dataset/split/predictor now reliably populated from CLI metadata).
+
+Backward compatibility:
+- The CLI can read and summarize both `1` and `1.1` result files.
+- Writers always emit the current `SCHEMA_VERSION`.
 
 ## Versioning
 
@@ -37,26 +50,54 @@ Additional metric keys may be added later (still within v1).
 
 ```json
 {
-  "schema_version": "1",
-  "dataset": "flowlearn:simflowchart_legacy",
+  "schema_version": "1.1",
+  "dataset": "example:minimal_v1",
   "split": "test",
-  "predictor": "heuristic",
-  "num_samples": 120,
+  "predictor": "oracle",
+  "num_samples": 3,
   "metrics": {
-    "direction_accuracy": 0.83,
-    "edge_f1": 0.71,
-    "edge_precision": 0.74,
-    "edge_recall": 0.69,
-    "exact_match_rate": 0.42,
-    "node_f1": 0.88,
-    "node_precision": 0.90,
-    "node_recall": 0.86,
-    "runtime_mean_s": 0.031
+    "node_precision": 1.0,
+    "node_recall": 1.0,
+    "node_f1": 1.0,
+    "edge_precision": 1.0,
+    "edge_recall": 1.0,
+    "edge_f1": 1.0,
+    "direction_accuracy": 1.0,
+    "exact_match_rate": 1.0
   },
   "run": {
-    "platform": "Windows-10-10.0.22631-SP0",
-    "python": "3.11.7",
-    "timestamp_utc": "2026-02-05T13:40:12Z"
+    "timestamp_utc": "2026-02-13T18:35:33Z",
+    "diagram2code_version": "0.1.6",
+    "git_sha": "abc1234",
+    "python": "3.11",
+    "platform": "Windows-10-10.0.19045",
+    "cli": "diagram2code benchmark",
+    "dataset_ref": "example:minimal_v1",
+    "dataset_root": "/abs/path/to/cache",
+    "predictor_out": null,
+    "dataset_manifest_sha256": "..."
   }
 }
+```
+
+## Inspecting Result Files
+
+Use the CLI to inspect benchmark JSON files:
+
+```bash
+diagram2code benchmark info outputs/result.json
+```
+Example Output:
+```yaml
+schema_version: 1.1
+dataset: example:minimal_v1
+split: test
+predictor: oracle
+num_samples: 3
+
+metrics:
+  node_f1: 1.0
+  edge_f1: 1.0
+  direction_accuracy: 1.0
+  exact_match_rate: 1.0
 ```

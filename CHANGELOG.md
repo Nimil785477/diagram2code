@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.6
+
+### Added
+- `diagram2code benchmark info` command for inspecting result JSON files.
+- `--fail-on-missing-manifest` strict reproducibility mode.
+- Manifest summary fields in `dataset info`.
+- Improved provenance handling in benchmark JSON (schema v1.1).
+
+### Changed
+- Result schema bumped to 1.1.
+- Top-level dataset/split/predictor fields now reliably populated.
+
 ## 0.1.5
 - Freeze benchmark result JSON schema v1 and add docs.
 - Add leaderboard aggregation command (CSV/Markdown) and format docs.

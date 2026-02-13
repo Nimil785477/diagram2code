@@ -104,3 +104,20 @@ python -m diagram2code.cli leaderboard --input outputs/result.json --out outputs
 - [ ] git_sha recorded (recommended)
 - [ ] Platform + Python recorded (recommended)
 - [ ] If vision: OpenCV/OCR versions recorded (recommended)
+
+## 8. Strict Reproducibility Mode
+
+To ensure benchmarking is performed only on properly installed datasets
+(with a verified `manifest.json`), use:
+
+```bash
+diagram2code benchmark \
+  --dataset flowlearn \
+  --predictor oracle \
+  --fail-on-missing-manifest
+```
+If the dataset root does not contain a `manifest.json`,
+the command will exit with error code 2.
+
+This prevents benchmarking on ad-hoc folders and improves
+reproducibility guarantees.

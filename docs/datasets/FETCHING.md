@@ -51,6 +51,25 @@ export DIAGRAM2CODE_CACHE_DIR="$HOME/diagram2code_cache"
 diagram2code dataset fetch tiny_remote_v1
 diagram2code dataset verify tiny_remote_v1
 ```
+## Inspect Dataset Metadata
+
+```bash
+diagram2code dataset info flowlearn
+```
+If installed, the output includes:
+
+- `manifest_path`
+- `manifest_sha256`
+- A summarized `manifest` object
+    - schema_version
+    - name
+    - version
+    - fetched_at_utc
+    - tooling
+    - artifact list (url, sha256, bytes, local_path)
+
+This allows external verification of dataset integrity.
+
 ## Common issues
 **“Manifest not found or unreadable”**
 - The dataset was not fetched yet, or
@@ -65,3 +84,4 @@ Fix:
 
 HF snapshot downloads are network + file-count heavy by nature.
 Use `--yes` to confirm and allow the fetch to proceed.
+
