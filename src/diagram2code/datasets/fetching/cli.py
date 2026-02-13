@@ -91,6 +91,32 @@ def dataset_info_cmd(name: str, *, cache_dir: Path | None, installed_only: bool 
     )
 
     installed = p.exists()
+    manifest_path = p / "manifest.json"
+    manifest_sha256 = None
+    manifest_summary = None
+
+    if installed and manifest_path.exists():
+        raw = manifest_path.read_bytes()
+        manifest_sha256 = hashlib.sha256(raw).hexdigest()
+
+        # Parse manifest and summarize it
+        m = read_manifest(p)
+        manifest_summary = {
+            "schema_version": m.schema_version,
+            "name": m.name,
+            "version": m.version,
+            "fetched_at_utc": m.fetched_at_utc,
+            "tooling": m.tooling,
+            "artifacts": [
+                {
+                    "url": a.url,
+                    "sha256": a.sha256,
+                    "bytes": a.bytes,
+                    "local_path": a.local_path,
+                }
+                for a in m.artifacts
+            ],
+        }
     if installed_only and not installed:
         print(f"Dataset not installed: {name}")
         return 2
@@ -101,6 +127,9 @@ def dataset_info_cmd(name: str, *, cache_dir: Path | None, installed_only: bool 
         "description": desc.description,
         "homepage": desc.homepage,
         "installed": installed,
+        "manifest_path": str(manifest_path) if installed and manifest_path.exists() else None,
+        "manifest_sha256": manifest_sha256,
+        "manifest": manifest_summary,
         "path": str(p) if installed else None,
         "artifacts": [
             {
