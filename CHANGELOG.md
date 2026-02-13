@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.6
+## 0.1.6 - 0.1.7
 
 ### Added
 - `diagram2code benchmark info` command for inspecting result JSON files.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -96,6 +97,9 @@ def _git_sha_short() -> str:
 
 
 def _now_utc_iso() -> str:
+    forced = os.environ.get("DIAGRAM2CODE_BENCHMARK_TIMESTAMP_UTC")
+    if forced:
+        return forced
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
@@ -187,7 +191,10 @@ def write_benchmark_json(
 
     if extra_run_meta:
         # ignore None values so callers can pass optional fields cleanly
-        run.update({k: v for k, v in extra_run_meta.items() if v is not None})
+        for k in sorted(extra_run_meta.keys()):
+            v = extra_run_meta[k]
+            if v is not None:
+                run[k] = v
 
     out = BenchmarkResult(
         schema_version=SCHEMA_VERSION,
@@ -202,6 +209,6 @@ def write_benchmark_json(
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(out.to_dict(), indent=2, sort_keys=True) + "\n",
+        json.dumps(out.to_dict(), indent=2, sort_keys=True, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
