@@ -332,6 +332,7 @@ def cmd_benchmark(args) -> int:
             "dataset_ref": dataset_ref,
             "dataset_root": str(dataset_root),
             "predictor": args.predictor,
+            "split": args.split,
             "predictor_out": str(args.predictor_out) if args.predictor_out else None,
         }
 

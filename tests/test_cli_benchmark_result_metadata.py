@@ -61,6 +61,9 @@ def test_cli_benchmark_result_metadata(tmp_path: Path) -> None:
     cli = meta.get("cli")
     assert isinstance(cli, str) and "diagram2code" in cli and "benchmark" in cli
 
+    assert data["dataset"] == "example:minimal_v1"
+    assert data["predictor"] == "oracle"
+    assert data["split"] in {"unknown", "test"}  # depending on how the test runs
     # Optional: if present, must look like a sha256
     msha = meta.get("dataset_manifest_sha256")
     if msha is not None:

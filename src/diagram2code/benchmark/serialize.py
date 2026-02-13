@@ -140,7 +140,14 @@ def write_benchmark_json(
     dataset_str = str(dataset_id) if dataset_id is not None else "unknown"
     split_str = str(split) if split is not None else "unknown"
     predictor_str = str(predictor) if predictor is not None else "unknown"
-
+    # Prefer explicit CLI provenance when provided (result object may not carry these)
+    if extra_run_meta:
+        if extra_run_meta.get("dataset_ref") is not None:
+            dataset_str = str(extra_run_meta["dataset_ref"])
+        if extra_run_meta.get("split") is not None:
+            split_str = str(extra_run_meta["split"])
+        if extra_run_meta.get("predictor") is not None:
+            predictor_str = str(extra_run_meta["predictor"])
     # num_samples
     num_samples = _get_attr_any(result, "num_samples")
     if num_samples is None:
