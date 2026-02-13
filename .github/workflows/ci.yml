@@ -48,6 +48,10 @@ jobs:
         run: |
           mkdir -p outputs
           python -m diagram2code benchmark --dataset example:minimal_v1 --predictor oracle --json outputs/ci_benchmark.json
+          
+      - name: Verify benchmark artifact
+        run: |
+          python scripts/ci_verify_benchmark.py outputs/ci_benchmark.json
 
       - name: Upload benchmark artifact
         uses: actions/upload-artifact@v4
