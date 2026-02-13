@@ -279,7 +279,12 @@ def cmd_benchmark(args) -> int:
                 return 2
 
         dataset_root = ds_dir
-
+    # Strict mode: require manifest.json for reproducibility
+    manifest_path = Path(dataset_root) / "manifest.json"
+    if args.fail_on_missing_manifest and not manifest_path.exists():
+        safe_print("Error: dataset has no manifest.json (strict mode enabled).")
+        safe_print(f"Dataset root: {dataset_root}")
+        return 2
     # Step 5.1: validate split early for friendlier error
     if args.split is not None:
         ds = load_dataset(dataset_root)
@@ -551,7 +556,11 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Confirm fetching large datasets (used with --fetch-missing for HF snapshots).",
     )
-
+    parser.add_argument(
+        "--fail-on-missing-manifest",
+        action="store_true",
+        help="Fail if dataset has no manifest.json (strict reproducibility mode).",
+    )
     # Dynamic predictor choices (Phase 5.1)
     from diagram2code.benchmark.predictor_backends import (
         available_predictors,
