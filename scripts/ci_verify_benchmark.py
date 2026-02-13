@@ -26,6 +26,7 @@ REQUIRED_METRICS = {
     # runtime_mean_s optional
 }
 
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("Usage: python scripts/ci_verify_benchmark.py <path-to-result.json>")
