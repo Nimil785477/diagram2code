@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import cv2
@@ -13,19 +14,6 @@ def safe_print(msg: str) -> None:
         print(msg)
     except UnicodeEncodeError:
         print(msg.encode("utf-8", errors="replace").decode("utf-8"))
-
-
-def _looks_like_path(s: str) -> bool:
-    # Treat as a path only if user clearly provided a path-like string.
-    # This prevents accidental collisions where a registry dataset name
-    # matches an existing local folder (e.g., ./flowlearn).
-    if not s:
-        return False
-    if s.startswith("."):
-        return True
-    if "/" in s or "\\" in s:
-        return True
-    return Path(s).is_absolute()
 
 
 def _edge_to_pair(e):
@@ -152,6 +140,10 @@ def _print_predictors_list() -> None:
         safe_print(f"  - {p}{extra}")
 
 
+class _BenchmarkDatasetResolutionError(RuntimeError):
+    pass
+
+
 def cmd_leaderboard(args) -> int:
     from glob import glob
 
@@ -186,10 +178,6 @@ def cmd_leaderboard(args) -> int:
 
     safe_print(f"Wrote leaderboard: {args.out}")
     return 0
-
-
-class _BenchmarkDatasetResolutionError(RuntimeError):
-    pass
 
 
 def _resolve_registry_dataset_root(
@@ -234,8 +222,9 @@ def _resolve_registry_dataset_root(
                 "--fetch-missing --yes"
             )
 
+        cache_root = os.environ.get("DIAGRAM2CODE_CACHE_DIR")
         try:
-            fetch_dataset(desc, cache_root=None, force=False)
+            fetch_dataset(desc, cache_root=Path(cache_root) if cache_root else None, force=False)
         except DatasetFetchError as e:
             raise _BenchmarkDatasetResolutionError(str(e)) from e
 
@@ -292,15 +281,11 @@ def cmd_benchmark(args) -> int:
         safe_print(f"Available predictors: {', '.join(preds)}")
         return 2
 
-    # Step 3 / Phase 6: dataset ref -> resolved filesystem root
     dataset_ref = args.dataset
     p = Path(dataset_ref)
 
-    # Case 1: explicit local path (only if it looks like a path)
-    if _looks_like_path(dataset_ref):
-        if not p.exists():
-            safe_print(f"Error: dataset path not found: {p}")
-            return 2
+    # Case 1: explicit local dataset root path (only if it looks like a dataset root)
+    if p.exists() and (p / "dataset.json").exists():
         dataset_root = p
 
     # Case 2: internal registry refs (Phase 3), e.g. example:minimal_v1
@@ -344,14 +329,7 @@ def cmd_benchmark(args) -> int:
             out_dir=args.predictor_out,
         )
     except SystemExit as e:
-        # Allow tests (and callers) to stop early with a clean exit code.
-        code = e.code
-        if code is None:
-            return 0
-        if isinstance(code, int):
-            return code
-        safe_print(str(code))
-        return 2
+        return int(e.code or 0)
 
     # Step 4: split/limit (runner may or may not support these kwargs yet).
     # Keep backward compatibility to avoid breaking if runner signature is older.
@@ -369,7 +347,7 @@ def cmd_benchmark(args) -> int:
                 "Note: --split/--limit were provided, but the current benchmark runner "
                 "does not accept them yet. Running full dataset without split/limit."
             )
-        result = run_benchmark(dataset_path=dataset_root_str, predictor=predictor, alpha=args.alpha)
+        result = run_benchmark(dataset_path=dataset_root, predictor=predictor, alpha=args.alpha)
 
     # stdout summary (stable + easy to grep)
     agg = result.aggregate
@@ -389,12 +367,12 @@ def cmd_benchmark(args) -> int:
             "predictor_out": str(args.predictor_out) if args.predictor_out else None,
         }
 
-        manifest_path = Path(dataset_root_str) / "manifest.json"
-        if manifest_path.exists():
+        manifest_path2 = Path(dataset_root_str) / "manifest.json"
+        if manifest_path2.exists():
             import hashlib
 
             extra["dataset_manifest_sha256"] = hashlib.sha256(
-                manifest_path.read_bytes()
+                manifest_path2.read_bytes()
             ).hexdigest()
 
         write_benchmark_json(result, args.json, extra_run_meta=extra)
@@ -405,7 +383,7 @@ def cmd_benchmark(args) -> int:
 
 def cmd_dataset(args) -> int:
     from diagram2code.datasets.fetching.cli import (
-        dataset_clean_cmd,  # NEW
+        dataset_clean_cmd,
         dataset_fetch_cmd,
         dataset_info_cmd,
         dataset_list_cmd,
@@ -433,9 +411,6 @@ def cmd_dataset(args) -> int:
 
     if args.dataset_cmd == "path":
         return dataset_path_cmd(args.name, cache_dir=args.cache_dir)
-
-    if args.dataset_cmd == "info":
-        return dataset_info_cmd(args.name, cache_dir=args.cache_dir)
 
     if args.dataset_cmd == "verify":
         return dataset_verify_cmd(args.name, cache_dir=args.cache_dir, deep=args.deep)
@@ -558,6 +533,7 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
 
     p_info = sp.add_parser("info", help="Print a summary of a benchmark result JSON")
     p_info.add_argument("result_json", type=Path, help="Path to a benchmark result JSON file")
+
     # Phase 5.1: discovery mode
     parser.add_argument(
         "--list-predictors",
@@ -615,6 +591,7 @@ def _build_benchmark_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Fail if dataset has no manifest.json (strict reproducibility mode).",
     )
+
     # Dynamic predictor choices (Phase 5.1)
     from diagram2code.benchmark.predictor_backends import (
         available_predictors,
@@ -678,6 +655,7 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Confirm fetching large datasets (may download many files).",
     )
+
     p_path = sp.add_parser("path", help="Print local path to an installed dataset")
     p_path.add_argument("name", help="Dataset name")
     p_path.add_argument(
@@ -705,12 +683,19 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Perform deep verification (rehash file artifacts, check snapshot dirs).",
     )
+
     p_clean = sp.add_parser("clean", help="Remove an installed dataset from cache")
     p_clean.add_argument("name", help="Dataset name")
     p_clean.add_argument(
-        "--all", action="store_true", help="Remove all installed versions of this dataset"
+        "--all",
+        action="store_true",
+        help="Remove all installed versions of this dataset",
     )
-    p_clean.add_argument("--yes", action="store_true", help="Confirm removal without prompt")
+    p_clean.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm removal without prompt",
+    )
     p_clean.add_argument(
         "--cache-dir", type=Path, default=None, help="Override cache root directory"
     )
@@ -926,9 +911,9 @@ def main(argv=None) -> int:
             "render_graph.py",
             "render_graph.png",
         ]:
-            p = out_dir / name
-            if p.exists():
-                shutil.copy2(p, export_dir / name)
+            p2 = out_dir / name
+            if p2.exists():
+                shutil.copy2(p2, export_dir / name)
 
         # Run scripts (work from any directory)
         (export_dir / "run.ps1").write_text(
