@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="140" viewBox="0 0 240 140">
+  <rect x="20" y="30" width="80" height="50" rx="8" fill="white" stroke="black" stroke-width="2"/>
+  <text x="60" y="60" text-anchor="middle" font-family="Arial" font-size="14">A</text>
+
+  <rect x="140" y="30" width="80" height="50" rx="8" fill="white" stroke="black" stroke-width="2"/>
+  <text x="180" y="60" text-anchor="middle" font-family="Arial" font-size="14">B</text>
+
+  <line x1="100" y1="55" x2="140" y2="55" stroke="black" stroke-width="2"/>
+  <polygon points="140,55 132,50 132,60" fill="black"/>
+</svg>

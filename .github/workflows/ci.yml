@@ -59,3 +59,14 @@ jobs:
           name: ci-benchmark
           path: outputs/ci_benchmark.json
           if-no-files-found: error
+      - name: Benchmark smoke (flowlearn_smoke fixture + oracle)
+        run: |
+          mkdir -p outputs
+          python -m diagram2code benchmark --dataset tests/fixtures/flowlearn_smoke --predictor oracle --json outputs/ci_benchmark_flowlearn_smoke.json
+          
+      - name: Upload flowlearn_smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-benchmark-flowlearn-smoke
+          path: outputs/ci_benchmark_flowlearn_smoke.json
+          if-no-files-found: error
