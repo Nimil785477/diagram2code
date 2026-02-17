@@ -15,6 +15,19 @@ def safe_print(msg: str) -> None:
         print(msg.encode("utf-8", errors="replace").decode("utf-8"))
 
 
+def _looks_like_path(s: str) -> bool:
+    # Treat as a path only if user clearly provided a path-like string.
+    # This prevents accidental collisions where a registry dataset name
+    # matches an existing local folder (e.g., ./flowlearn).
+    if not s:
+        return False
+    if s.startswith("."):
+        return True
+    if "/" in s or "\\" in s:
+        return True
+    return Path(s).is_absolute()
+
+
 def _edge_to_pair(e):
     """
     Convert various edge representations to (src, dst).
@@ -175,6 +188,60 @@ def cmd_leaderboard(args) -> int:
     return 0
 
 
+class _BenchmarkDatasetResolutionError(RuntimeError):
+    pass
+
+
+def _resolve_registry_dataset_root(
+    dataset_ref: str, *, fetch_missing: bool, assume_yes: bool
+) -> Path:
+    """
+    Resolve a registry dataset name (e.g. 'flowlearn') to an installed dataset root path.
+    If dataset_ref is an existing path, returns it unchanged.
+
+    NOTE: This is for registry datasets only (NOT example:...).
+    """
+    p = Path(dataset_ref)
+    if p.exists():
+        return p
+
+    from diagram2code.datasets.fetching.cache import dataset_dir
+    from diagram2code.datasets.fetching.errors import DatasetFetchError, DatasetNotFoundError
+    from diagram2code.datasets.fetching.fetcher import fetch_dataset
+    from diagram2code.datasets.fetching.registry import RemoteDatasetRegistry
+
+    reg = RemoteDatasetRegistry.builtins()
+    try:
+        desc = reg.get(dataset_ref)
+    except DatasetNotFoundError as e:
+        raise _BenchmarkDatasetResolutionError(str(e)) from e
+
+    ds_dir = dataset_dir(desc.name, desc.version)
+
+    if not ds_dir.exists():
+        if not fetch_missing:
+            raise _BenchmarkDatasetResolutionError(
+                f"Dataset not installed: {dataset_ref}\n"
+                f"Install it with: diagram2code dataset fetch {dataset_ref}\n"
+                "Or re-run benchmark with: --fetch-missing [--yes]"
+            )
+
+        # Safety: prevent accidental huge downloads unless explicitly confirmed
+        if any(a.type == "hf_snapshot" for a in desc.artifacts) and not assume_yes:
+            raise _BenchmarkDatasetResolutionError(
+                "Refusing to fetch without confirmation: this dataset may be large.\n"
+                f"Re-run with: diagram2code benchmark --dataset {dataset_ref} "
+                "--fetch-missing --yes"
+            )
+
+        try:
+            fetch_dataset(desc, cache_root=None, force=False)
+        except DatasetFetchError as e:
+            raise _BenchmarkDatasetResolutionError(str(e)) from e
+
+    return ds_dir
+
+
 def cmd_benchmark_info(args) -> int:
     from diagram2code.benchmark.info import (
         BenchmarkInfoError,
@@ -229,82 +296,68 @@ def cmd_benchmark(args) -> int:
     dataset_ref = args.dataset
     p = Path(dataset_ref)
 
-    # Case 1: explicit local path
-    if p.exists():
+    # Case 1: explicit local path (only if it looks like a path)
+    if _looks_like_path(dataset_ref):
+        if not p.exists():
+            safe_print(f"Error: dataset path not found: {p}")
+            return 2
         dataset_root = p
 
     # Case 2: internal registry refs (Phase 3), e.g. example:minimal_v1
     elif dataset_ref.startswith("example:"):
         dataset_root = DatasetRegistry().resolve_root(dataset_ref)
 
-    # Case 3: remote datasets (Phase 6) by name, e.g. tiny_remote_v1 / flowlearn
+    # Case 3: registry dataset name (Phase 6), e.g. tiny_remote_v1 / flowlearn
     else:
-        from diagram2code.datasets.fetching.cache import dataset_dir
-        from diagram2code.datasets.fetching.errors import (
-            DatasetFetchError,
-            DatasetNotFoundError,
-        )
-        from diagram2code.datasets.fetching.fetcher import fetch_dataset
-        from diagram2code.datasets.fetching.registry import RemoteDatasetRegistry
-
-        reg = RemoteDatasetRegistry.builtins()
         try:
-            desc = reg.get(dataset_ref)
-        except DatasetNotFoundError as e:
+            dataset_root = _resolve_registry_dataset_root(
+                dataset_ref,
+                fetch_missing=args.fetch_missing,
+                assume_yes=args.yes,
+            )
+        except _BenchmarkDatasetResolutionError as e:
             safe_print(str(e))
             return 2
 
-        ds_dir = dataset_dir(desc.name, desc.version)
+    dataset_root_str = str(dataset_root)
 
-        if not ds_dir.exists():
-            if not args.fetch_missing:
-                safe_print(f"Dataset not installed: {dataset_ref}")
-                safe_print(f"Install it with: diagram2code dataset fetch {dataset_ref}")
-                safe_print("Or re-run benchmark with: --fetch-missing [--yes]")
-                return 2
-
-            # Safety: prevent accidental huge downloads unless explicitly confirmed
-            if any(a.type == "hf_snapshot" for a in desc.artifacts) and not args.yes:
-                safe_print(
-                    "Refusing to fetch without confirmation: this dataset may be large.\n"
-                    f"Re-run with: diagram2code benchmark --dataset {dataset_ref} "
-                    "--fetch-missing --yes"
-                )
-                return 2
-
-            try:
-                fetch_dataset(desc, cache_root=None, force=False)
-            except DatasetFetchError as e:
-                safe_print(str(e))
-                return 2
-
-        dataset_root = ds_dir
     # Strict mode: require manifest.json for reproducibility
     manifest_path = Path(dataset_root) / "manifest.json"
     if args.fail_on_missing_manifest and not manifest_path.exists():
         safe_print("Error: dataset has no manifest.json (strict mode enabled).")
         safe_print(f"Dataset root: {dataset_root}")
         return 2
+
     # Step 5.1: validate split early for friendlier error
     if args.split is not None:
-        ds = load_dataset(dataset_root)
+        ds = load_dataset(dataset_root_str)
         splits = ds.splits()
         if args.split not in splits:
             safe_print(f"Error: Unknown split '{args.split}'.")
             safe_print(f"Available splits: {', '.join(splits)}")
             return 2
 
-    predictor = make_predictor(
-        args.predictor,
-        dataset_path=dataset_root,
-        out_dir=args.predictor_out,
-    )
+    try:
+        predictor = make_predictor(
+            args.predictor,
+            dataset_path=dataset_root_str,
+            out_dir=args.predictor_out,
+        )
+    except SystemExit as e:
+        # Allow tests (and callers) to stop early with a clean exit code.
+        code = e.code
+        if code is None:
+            return 0
+        if isinstance(code, int):
+            return code
+        safe_print(str(code))
+        return 2
 
     # Step 4: split/limit (runner may or may not support these kwargs yet).
     # Keep backward compatibility to avoid breaking if runner signature is older.
     try:
         result = run_benchmark(
-            dataset_path=dataset_root,
+            dataset_path=dataset_root_str,
             predictor=predictor,
             alpha=args.alpha,
             split=args.split,
@@ -316,7 +369,7 @@ def cmd_benchmark(args) -> int:
                 "Note: --split/--limit were provided, but the current benchmark runner "
                 "does not accept them yet. Running full dataset without split/limit."
             )
-        result = run_benchmark(dataset_path=dataset_root, predictor=predictor, alpha=args.alpha)
+        result = run_benchmark(dataset_path=dataset_root_str, predictor=predictor, alpha=args.alpha)
 
     # stdout summary (stable + easy to grep)
     agg = result.aggregate
@@ -336,7 +389,7 @@ def cmd_benchmark(args) -> int:
             "predictor_out": str(args.predictor_out) if args.predictor_out else None,
         }
 
-        manifest_path = Path(dataset_root) / "manifest.json"
+        manifest_path = Path(dataset_root_str) / "manifest.json"
         if manifest_path.exists():
             import hashlib
 
@@ -655,15 +708,9 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
     p_clean = sp.add_parser("clean", help="Remove an installed dataset from cache")
     p_clean.add_argument("name", help="Dataset name")
     p_clean.add_argument(
-        "--all",
-        action="store_true",
-        help="Remove all installed versions of this dataset",
+        "--all", action="store_true", help="Remove all installed versions of this dataset"
     )
-    p_clean.add_argument(
-        "--yes",
-        action="store_true",
-        help="Confirm removal without prompt",
-    )
+    p_clean.add_argument("--yes", action="store_true", help="Confirm removal without prompt")
     p_clean.add_argument(
         "--cache-dir", type=Path, default=None, help="Override cache root directory"
     )
