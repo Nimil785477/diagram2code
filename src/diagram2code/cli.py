@@ -8,6 +8,47 @@ from pathlib import Path
 import cv2
 
 
+def _looks_like_path(s: str) -> bool:
+    # Any separators, explicit relative/absolute markers, or drive letter -> path-like.
+    if "/" in s or "\\" in s:
+        return True
+    if s.startswith((".", "~")):
+        return True
+    p = Path(s)
+    if p.is_absolute():
+        return True
+    # Windows drive form like C:...
+    if len(s) >= 2 and s[1] == ":":
+        return True
+    return False
+
+
+def _resolve_benchmark_dataset_root(
+    dataset_ref: str, *, fetch_missing: bool, assume_yes: bool
+) -> Path:
+    """
+    Resolve the benchmark --dataset argument into a concrete dataset root directory.
+
+    Rules:
+    - example:... handled by DatasetRegistry
+    - explicit paths (./..., ../..., absolute, contains separators) use filesystem
+    - otherwise treat as a registry dataset name (e.g. "flowlearn")
+    """
+    if dataset_ref.startswith("example:"):
+        from diagram2code.datasets import DatasetRegistry
+
+        return DatasetRegistry().resolve_root(dataset_ref)
+
+    if _looks_like_path(dataset_ref):
+        return Path(dataset_ref)
+
+    return _resolve_registry_dataset_root(
+        dataset_ref,
+        fetch_missing=fetch_missing,
+        assume_yes=assume_yes,
+    )
+
+
 def safe_print(msg: str) -> None:
     # Avoid UnicodeEncodeError on Windows CI/console encodings
     try:
@@ -255,12 +296,9 @@ def cmd_benchmark(args) -> int:
 
     """
     Phase 3 dataset-first benchmarking entry.
-    Step 3: support dataset references via DatasetRegistry (e.g. example:minimal_v1).
-    Step 4: add split/limit selection (passed through to runner when supported).
-    Phase 5.1: CLI usability (list predictors, friendly errors).
-    Phase 6.1: support remote registry datasets (fetch-on-missing, guarded).
+    Phase 6: registry datasets (fetch-on-missing, guarded).
     """
-    # Phase 5.1: discovery without needing dataset
+    # Discovery mode
     if getattr(args, "list_predictors", False):
         _print_predictors_list()
         return 0
@@ -272,56 +310,42 @@ def cmd_benchmark(args) -> int:
     from diagram2code.benchmark.predictor_backends import available_predictors, make_predictor
     from diagram2code.benchmark.runner import run_benchmark
     from diagram2code.benchmark.serialize import write_benchmark_json
-    from diagram2code.datasets import DatasetRegistry, load_dataset
+    from diagram2code.datasets import load_dataset
 
-    # Validate predictor name (even though argparse choices usually enforces this)
+    # Validate predictor name
     preds = available_predictors()
     if args.predictor not in preds:
         safe_print(f"Error: Unknown predictor '{args.predictor}'.")
         safe_print(f"Available predictors: {', '.join(preds)}")
         return 2
 
-    dataset_ref = args.dataset
-    p = Path(dataset_ref)
+    fetch_missing = bool(getattr(args, "fetch_missing", False))
+    assume_yes = bool(getattr(args, "yes", False))
 
-    # Case 1: explicit local dataset root path (only if it looks like a dataset root)
-    if p.exists() and (p / "dataset.json").exists():
-        dataset_root = p
-
-    # Case 2: internal registry refs (Phase 3), e.g. example:minimal_v1
-    elif dataset_ref.startswith("example:"):
-        dataset_root = DatasetRegistry().resolve_root(dataset_ref)
-
-    # Case 3: registry dataset name (Phase 6), e.g. tiny_remote_v1 / flowlearn
-    else:
-        try:
-            dataset_root = _resolve_registry_dataset_root(
-                dataset_ref,
-                fetch_missing=args.fetch_missing,
-                assume_yes=args.yes,
-            )
-        except _BenchmarkDatasetResolutionError as e:
-            safe_print(str(e))
-            return 2
+    # Resolve dataset ref -> concrete root path
+    try:
+        dataset_root = _resolve_benchmark_dataset_root(
+            args.dataset,
+            fetch_missing=fetch_missing,
+            assume_yes=assume_yes,
+        )
+    except _BenchmarkDatasetResolutionError as e:
+        safe_print(str(e))
+        return 2
 
     dataset_root_str = str(dataset_root)
 
-    # Strict mode: require manifest.json for reproducibility
-    manifest_path = Path(dataset_root) / "manifest.json"
-    if args.fail_on_missing_manifest and not manifest_path.exists():
-        safe_print("Error: dataset has no manifest.json (strict mode enabled).")
-        safe_print(f"Dataset root: {dataset_root}")
-        return 2
-
-    # Step 5.1: validate split early for friendlier error
-    if args.split is not None:
-        ds = load_dataset(dataset_root_str)
-        splits = ds.splits()
-        if args.split not in splits:
-            safe_print(f"Error: Unknown split '{args.split}'.")
-            safe_print(f"Available splits: {', '.join(splits)}")
+    # Strict mode: require manifest.json for reproducibility (must happen BEFORE load_dataset)
+    if getattr(args, "fail_on_missing_manifest", False):
+        mpath = dataset_root / "manifest.json"
+        if not mpath.exists():
+            safe_print(
+                f"Error: no manifest.json (strict mode enabled). Dataset root: {dataset_root}"
+            )
             return 2
 
+    # IMPORTANT: make_predictor must see resolved path
+    #  (and tests expect predictor called before load_dataset)
     try:
         predictor = make_predictor(
             args.predictor,
@@ -331,8 +355,18 @@ def cmd_benchmark(args) -> int:
     except SystemExit as e:
         return int(e.code or 0)
 
-    # Step 4: split/limit (runner may or may not support these kwargs yet).
-    # Keep backward compatibility to avoid breaking if runner signature is older.
+    # Load dataset (after strict manifest + after predictor for wiring tests)
+    ds = load_dataset(dataset_root_str)
+
+    # Validate split early
+    if args.split is not None:
+        splits = ds.splits()
+        if args.split not in splits:
+            safe_print(f"Error: Unknown split '{args.split}'.")
+            safe_print(f"Available splits: {', '.join(splits)}")
+            return 2
+
+    # Run benchmark (split/limit optional)
     try:
         result = run_benchmark(
             dataset_path=dataset_root_str,
@@ -347,9 +381,9 @@ def cmd_benchmark(args) -> int:
                 "Note: --split/--limit were provided, but the current benchmark runner "
                 "does not accept them yet. Running full dataset without split/limit."
             )
-        result = run_benchmark(dataset_path=dataset_root, predictor=predictor, alpha=args.alpha)
+        result = run_benchmark(dataset_path=dataset_root_str, predictor=predictor, alpha=args.alpha)
 
-    # stdout summary (stable + easy to grep)
+    # stdout summary
     agg = result.aggregate
     print(f"node: p={agg.node.precision:.3f} r={agg.node.recall:.3f} f1={agg.node.f1:.3f}")
     print(f"edge: p={agg.edge.precision:.3f} r={agg.edge.recall:.3f} f1={agg.edge.f1:.3f}")
@@ -360,8 +394,8 @@ def cmd_benchmark(args) -> int:
     if args.json is not None:
         extra = {
             "cli": "diagram2code benchmark",
-            "dataset_ref": dataset_ref,
-            "dataset_root": str(dataset_root),
+            "dataset_ref": args.dataset,
+            "dataset_root": dataset_root_str,
             "predictor": args.predictor,
             "split": args.split,
             "predictor_out": str(args.predictor_out) if args.predictor_out else None,
