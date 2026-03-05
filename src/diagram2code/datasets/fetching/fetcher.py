@@ -335,15 +335,9 @@ def _postprocess_dataset(descriptor: DatasetDescriptor, ds_dir: Path) -> None:
     """
     Optional post-processing to make raw remote datasets usable by diagram2code.
 
-    For FlowLearn HF snapshot:
-      - write dataset.json
-      - write splits.json
+    FlowLearn HF snapshot is raw-only and is not post-processed into a Phase-3 dataset.
     """
-    hint = (descriptor.loader_hint or "").strip()
-
-    if hint == "flowlearn_hf_snapshot_v1":
-        _build_flowlearn_hf_snapshot_layout(ds_dir)
-        return
+    # hint = (descriptor.loader_hint or "").strip()
 
     # tiny_remote_v1 is only for manifest smoke tests; no postprocess needed.
     return

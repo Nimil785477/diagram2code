@@ -42,7 +42,16 @@ def _all_samples_under_images_dir(data: dict) -> bool:
 def load_dataset(dataset_root: str | Path, *, validate_graphs: bool = True) -> Dataset:
     root = Path(dataset_root)
     layout = DatasetLayout(root)
-
+    # RAW-only dataset guard:
+    # Some fetched datasets may only provide raw artifacts under root/raw/... and
+    # do not include a Phase-3 dataset.json/graphs. Treat these as not benchmarkable.
+    raw_dir = root / "raw"
+    if raw_dir.exists() and not layout.metadata_path.exists():
+        raise DatasetError(
+            f"Dataset at {root} appears to be a RAW-only installation "
+            "(found raw/ but no dataset.json). "
+            "It cannot be loaded as a Phase-3 dataset for benchmarking."
+        )
     assert_exists(layout.metadata_path, "dataset.json")
 
     try:
