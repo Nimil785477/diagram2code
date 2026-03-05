@@ -20,7 +20,10 @@ _MERMAID_EDGE_RE = re.compile(r"entity(\d+)\s*[-=]+>\s*entity(\d+)")
 
 
 def _read_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise DatasetError(f"FlowLearn: failed to parse JSON: {path}") from e
 
 
 def _ensure_dir(p: Path) -> None:
@@ -148,6 +151,7 @@ def _simflowchart_paths(flowlearn_root: Path, *, variant: str, split: str) -> _S
     if not split_path.exists():
         raise FileNotFoundError(f"Missing split file: {split_path}")
 
+    # This is the layout used by our synthetic tests and by the older adapter.
     images_dir = flowlearn_root / "SimFlowchart" / "images" / f"{variant}_TextOCR" / "images"
     if not images_dir.is_dir():
         raise FileNotFoundError(f"Missing images directory: {images_dir}")
@@ -164,7 +168,29 @@ def _convert_simflowchart_variant(
     limit: int | None,
     strict: bool,
 ) -> Path:
-    paths = _simflowchart_paths(flowlearn_root, variant=variant, split=split)
+    """
+    Convert SimFlowchart/{variant} into Phase-3 dataset format.
+
+    This supports the synthetic minimal layout used by tests where:
+      SimFlowchart/{variant}/{split}.json exists
+      SimFlowchart/images/{variant}_TextOCR/images/<files> exists
+
+    If those are missing (HF snapshot), fail fast with a helpful DatasetError.
+    """
+    try:
+        paths = _simflowchart_paths(flowlearn_root, variant=variant, split=split)
+    except FileNotFoundError as e:
+        raise DatasetError(
+            (
+                "FlowLearn: SimFlowchart/{variant} cannot be converted from this snapshot/layout. "
+                "Expected images at SimFlowchart/images/{variant}_TextOCR/images and split JSON at "
+                "SimFlowchart/{variant}/{split}.json. In the installed HF snapshot, SimFlowchart "
+                "contains only VQA/index JSON and no diagram images, so Phase-3 conversion "
+                "(images/ + graphs/) is not possible."
+            )
+            .replace("{variant}", variant)
+            .replace("{split}", split)
+        ) from e
 
     records = _read_json(paths.split_path)
     if not isinstance(records, list):
@@ -238,7 +264,7 @@ def _convert_simflowchart_variant(
     if errors:
         msg = "FlowLearn conversion failed:\n" + "\n".join(errors[:30])
         if strict:
-            raise RuntimeError(msg)
+            raise DatasetError(msg)
         print(msg)
 
     meta = {
@@ -376,10 +402,12 @@ def convert_flowlearn(
 
     Supported:
       - subset="SimFlowchart" (legacy minimal format for tests)
+
+    Explicitly unsupported (HF snapshot layout does not provide images/graphs):
       - subset="SimFlowchart/char"
       - subset="SimFlowchart/word"
 
-    Output:
+    Output (Phase-3):
       out/
         dataset.json
         images/<sample_id>.<ext>
@@ -398,6 +426,27 @@ def convert_flowlearn(
     if split not in {"train", "test", "all"}:
         raise ValueError("split must be one of: train, test, all")
 
+    if subset == "SciFlowchart":
+        return _convert_sciflowchart(
+            flowlearn_root=flowlearn_root,
+            split=split,
+            out=out,
+            limit=limit,
+            strict=strict,
+        )
+
+    if subset in {"SimFlowchart/char", "SimFlowchart/word"}:
+        # Keep function signature stable; raise a helpful DatasetError.
+        variant = "char" if subset.endswith("/char") else "word"
+        return _convert_simflowchart_variant(
+            flowlearn_root=flowlearn_root,
+            variant=variant,
+            split=split,
+            out=out,
+            limit=limit,
+            strict=strict,
+        )
+
     if subset == "SimFlowchart":
         return _convert_simflowchart_legacy_minimal(
             flowlearn_root=flowlearn_root,
@@ -405,26 +454,62 @@ def convert_flowlearn(
             out=out,
         )
 
-    if subset == "SimFlowchart/char":
-        return _convert_simflowchart_variant(
-            flowlearn_root=flowlearn_root,
-            variant="char",
-            split=split,
-            out=out,
-            limit=limit,
-            strict=strict,
-        )
-
-    if subset == "SimFlowchart/word":
-        return _convert_simflowchart_variant(
-            flowlearn_root=flowlearn_root,
-            variant="word",
-            split=split,
-            out=out,
-            limit=limit,
-            strict=strict,
-        )
-
     raise ValueError(
-        "Unsupported subset. Use: SimFlowchart, SimFlowchart/char, or SimFlowchart/word."
+        "Unsupported subset. Use: SimFlowchart (legacy minimal format). "
+        "Note: SimFlowchart/char and SimFlowchart/word are not convertible from the HF snapshot."
+    )
+
+
+def _convert_sciflowchart(
+    *,
+    flowlearn_root: Path,
+    split: str,
+    out: Path,
+    limit: int | None,
+    strict: bool,
+) -> Path:
+    sci_root = flowlearn_root / "SciFlowchart"
+    split_path = sci_root / f"{split}.json"
+    images_dir = sci_root / "images"
+
+    if not split_path.is_file():
+        raise DatasetError(f"FlowLearn: missing SciFlowchart split file: {split_path}")
+    if not images_dir.is_dir():
+        raise DatasetError(f"FlowLearn: missing SciFlowchart images dir: {images_dir}")
+
+    records = _read_json(split_path)
+    if not isinstance(records, list):
+        raise DatasetError(f"FlowLearn: expected list JSON in {split_path}")
+    if limit is not None:
+        records = records[: max(0, int(limit))]
+
+    # We explicitly require graph supervision; current snapshot doesn't have it.
+    def _has_graph_supervision(rec: dict[str, Any]) -> bool:
+        # only accept actual structured supervision fields (not caption text)
+        for k in ("nodes", "edges", "mermaid", "mermaid_code", "flowchart_mermaid"):
+            if k not in rec:
+                continue
+            v = rec.get(k)
+            if k in {"nodes", "edges"} and isinstance(v, list) and v:
+                return True
+            if (
+                k in {"mermaid", "mermaid_code", "flowchart_mermaid"}
+                and isinstance(v, str)
+                and v.strip()
+            ):
+                # require mermaid-like syntax, not just a single word
+                if "graph TD" in v or "graph LR" in v or "flowchart" in v:
+                    return True
+        return False
+
+    if not any(isinstance(r, dict) and _has_graph_supervision(r) for r in records[:200]):
+        raise DatasetError(
+            "FlowLearn: SciFlowchart split contains figure images and metadata "
+            "(captions/OCR/bounds) but no graph annotations (Mermaid/nodes/edges). "
+            "Cannot generate Phase-3 graphs."
+        )
+
+    # If you later add supervision, this is where you’d convert.
+    raise DatasetError(
+        "FlowLearn: SciFlowchart supervision detected but conversion is not implemented yet."
     )
