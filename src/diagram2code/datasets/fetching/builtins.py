@@ -29,7 +29,7 @@ def built_in_descriptors() -> dict[str, DatasetDescriptor]:
                 ),
             ),
             expected_layout=(),
-            loader_hint="flowlearn_hf_snapshot_v1",
+            loader_hint=None,
         ),
         "tiny_remote_v1": DatasetDescriptor(
             name="tiny_remote_v1",
