@@ -1,48 +1,49 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-from diagram2code.datasets.loader import load_dataset
 from diagram2code.datasets.synthflow import build_synthflow_dataset
 
 
-def test_build_synthflow_dataset(tmp_path: Path) -> None:
-    out = tmp_path / "synthflow_ds"
+def test_build_synthflow_dataset_v2_writes_expected_files(tmp_path):
+    out = tmp_path / "synthflow"
 
-    build_synthflow_dataset(
-        out=out,
-        split="test",
-        num_samples=4,
-        seed=0,
-    )
+    build_synthflow_dataset(out=out, split="test", num_samples=5, seed=0)
 
     assert (out / "dataset.json").exists()
     assert (out / "splits.json").exists()
-    assert (out / "images").is_dir()
-    assert (out / "graphs").is_dir()
+    assert (out / "images").exists()
+    assert (out / "graphs").exists()
 
-    graph_files = sorted((out / "graphs").glob("*.json"))
-    image_files = sorted((out / "images").glob("*.png"))
+    dataset = json.loads((out / "dataset.json").read_text(encoding="utf-8"))
+    splits = json.loads((out / "splits.json").read_text(encoding="utf-8"))
 
-    assert len(graph_files) == 4
-    assert len(image_files) == 4
+    assert dataset["name"] == "synthflow_v2"
+    assert dataset["version"] == "2"
+    assert dataset["extra"]["generator"] == "synthflow_v2"
+    assert dataset["extra"]["num_samples"] == 5
+    assert dataset["extra"]["seed"] == 0
 
-    graph = json.loads(graph_files[0].read_text(encoding="utf-8"))
-    assert "nodes" in graph
-    assert "edges" in graph
-    assert len(graph["nodes"]) >= 2
-    assert len(graph["edges"]) >= 1
+    sample_ids = splits["splits"]["test"]
+    assert len(sample_ids) == 5
 
-    for node in graph["nodes"]:
-        assert isinstance(node["id"], str)
-        assert isinstance(node["bbox"], list)
-        assert len(node["bbox"]) == 4
-        assert all(isinstance(v, int) for v in node["bbox"])
+    for sample_id in sample_ids:
+        image_path = out / "images" / f"{sample_id}.png"
+        graph_path = out / "graphs" / f"{sample_id}.json"
 
-    for edge in graph["edges"]:
-        assert isinstance(edge["source"], str)
-        assert isinstance(edge["target"], str)
+        assert image_path.exists()
+        assert graph_path.exists()
 
-    ds = load_dataset(out)
-    assert len(list(ds.samples())) == 4
+        graph = json.loads(graph_path.read_text(encoding="utf-8"))
+        assert "nodes" in graph
+        assert "edges" in graph
+        assert len(graph["nodes"]) >= 3
+        assert len(graph["edges"]) >= 2
+
+        for node in graph["nodes"]:
+            assert set(node.keys()) == {"id", "bbox"}
+            assert isinstance(node["bbox"], list)
+            assert len(node["bbox"]) == 4
+
+        for edge in graph["edges"]:
+            assert set(edge.keys()) == {"source", "target"}
