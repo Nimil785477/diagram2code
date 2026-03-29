@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.8
+
+### Added
+- `diagram2code dataset build synthflow` local synthetic dataset builder.
+- SynthFlow v2 generation with:
+  - layout variation
+  - decision-node rendering
+  - deterministic bbox jitter
+- `naive` predictor as a weak deterministic baseline.
+- Benchmark robustness metrics:
+  - `node_count_error`
+  - `edge_count_error`
+- CLI summary output for `dataset build synthflow`:
+  - generator
+  - split
+  - sample count
+  - seed
+
+### Changed
+- Benchmark result JSON now includes `node_count_error` and `edge_count_error`.
+- Benchmark CLI output now prints count-error metrics alongside existing aggregate metrics.
+- Predictor discovery now includes `naive`.
+- SynthFlow benchmark generation is now more meaningful while preserving deterministic seeded output and Phase-3 dataset compatibility.
+
+### Quality
+- Added SynthFlow v2 generation and determinism coverage.
+- Added naive predictor benchmark coverage.
+- Test suite expanded; all tests passing (127 tests).
+- Package build verified with `python -m build` and `python -m twine check dist/*`.
+
 ## 0.1.6 - 0.1.7
 
 ### Added
