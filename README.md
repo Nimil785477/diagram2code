@@ -47,7 +47,7 @@ Install:
 ```
 pip install -e .
 ```
-### Basic (no OCR)
+### Basic install from PyPI
 ```bash
 pip install diagram2code
 ```
@@ -66,7 +66,7 @@ brew install tesseract
 sudo apt install tesseract-ocr
 ```
 Then run:
-```bash
+```Powershell
 diagram2code image.png --extract-labels
 ```
 
@@ -74,27 +74,12 @@ This matches exactly what your code already does ✔️
 
 ---
 
-## (Optional but recommended) Add a runtime hint
 
-You already handle this well, but one tiny UX improvement:
-
-In `cli.py`, after `--extract-labels` failure, you could optionally print:
-
-```python
-safe_print("Hint: install OCR support with `pip install diagram2code[ocr]` and install Tesseract.")
-```
-
-### Generate a labels template (no OCR)
-If you want to label nodes manually, generate a template file:
-
-```bash
-diagram2code path/to/diagram.png --out outputs --labels-template
-```
 
 ## Quick Start
 
 Run diagram2code on a simple diagram:
-```
+```bash
 diagram2code tests/fixtures/branching.png --out outputs
 ```
 This will write outputs (see Generated Files)
@@ -104,7 +89,7 @@ This will write outputs (see Generated Files)
 You can inspect the detected nodes, edges, and labels using `--print-graph`.
 
 ```bash
-diagram2code tests/fixtures/branching.png --out outputs --print-graph.
+diagram2code tests/fixtures/branching.png --out outputs --print-graph
 ```
 This will:
 - run the full detection pipeline
@@ -172,6 +157,13 @@ When multiple label sources are possible, `diagram2code` resolves labels in the 
    ```bash
    Labels source: auto (export_out/labels.json)
    ```
+
+### Generate a labels template (no OCR)
+If you want to label nodes manually, generate a template file:
+
+```bash
+diagram2code path/to/diagram.png --out outputs --labels-template
+```
 
 ## Export Bundle
 The **--export** flag creates a self-contained runnable bundle(easy to share). If `labels.json` exists inside the export directory, it will be automatically used on subsequent runs.
@@ -266,7 +258,7 @@ Requirements:
 If OCR is unavailable, the pipeline still works and labels default to empty.
 
 ## Limitations
-- Only rectangular nodes are supported
+- The current image-to-code parser is optimized for simple rectangular flowchart steps
 - Arrow detection is heuristic-based
 - Complex curves, diagonals, or overlapping arrows may fail
 - No text extraction from inside shapes
@@ -274,8 +266,7 @@ If OCR is unavailable, the pipeline still works and labels default to empty.
 
 ## Datasets, Predictors & Benchmarks
 
-Beyond image-to-code conversion, `diagram2code` includes a **dataset-backed
-benchmarking system** for evaluating different predictors in a reproducible way.
+Beyond image-to-code conversion, `diagram2code` includes a **dataset-backed benchmarking system** for reproducible evaluation of graph predictors.
 
 This functionality is optional and intended for:
 - experimentation
@@ -283,11 +274,46 @@ This functionality is optional and intended for:
 - comparative evaluation
 
 ### Core concepts
-- **Datasets** define inputs, ground truth graphs, and splits
+- **Datasets** define inputs, ground-truth graphs, and splits
 - **Predictors** generate graph predictions from inputs
-- **Benchmarks** compute node/edge metrics and aggregate results
+- **Benchmarks** compute aggregate metrics and export structured JSON results
 
-### Documentation entry points
+### Included predictors
+- `oracle` — upper bound using ground-truth graphs
+- `heuristic` — deterministic non-ML baseline
+- `naive` — weak baseline returning a single centered node and no edges
+- `vision` — legacy image-based CV pipeline
+
+### Benchmark metrics
+Benchmarks report:
+- node precision / recall / f1
+- edge precision / recall / f1
+- `direction_accuracy`
+- `exact_match_rate`
+- `node_count_error`
+- `edge_count_error`
+
+### Minimal local dataset example
+
+Build a small deterministic synthetic dataset:
+
+```powershell
+python -m diagram2code dataset build synthflow --out outputs\synthflow --split test --num-samples 5 --seed 0
+```
+Run an oracle benchmark:
+```powershell
+python -m diagram2code benchmark --dataset outputs\synthflow --split test --predictor oracle --limit 3 --json outputs\oracle_result.json
+```
+Run a weak baseline benchmark:
+```powershell
+python -m diagram2code benchmark --dataset outputs\synthflow --split test --predictor naive --limit 3 --json outputs\naive_result.json
+```
+Inspect a benchmark result:
+```powershell
+python -m diagram2code benchmark info outputs\oracle_result.json
+```
+
+### Additional documentation
 
 **Datasets**
 - Overview: `docs/datasets/OVERVIEW.md`
