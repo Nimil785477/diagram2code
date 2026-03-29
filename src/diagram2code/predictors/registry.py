@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from diagram2code.predictors.base import Predictor
 from diagram2code.predictors.heuristic import HeuristicPredictor
+from diagram2code.predictors.naive import NaivePredictor
 from diagram2code.predictors.oracle import OraclePredictor
 
 PREDICTOR_REGISTRY: dict[str, type[Predictor]] = {
     "oracle": OraclePredictor,
     "heuristic": HeuristicPredictor,
+    "naive": NaivePredictor,
 }
 
 

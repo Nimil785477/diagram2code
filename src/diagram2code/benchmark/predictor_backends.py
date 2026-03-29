@@ -63,5 +63,6 @@ def predictor_descriptions() -> dict[str, str]:
     return {
         "oracle": "Upper bound (uses ground-truth graph). For pipeline validation.",
         "heuristic": "Deterministic baseline (non-ML).",
+        "naive": "Weak baseline (single centered node, no edges).",
         "vision": "Legacy CV pipeline (image-based).",
     }
