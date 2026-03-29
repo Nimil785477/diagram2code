@@ -15,6 +15,8 @@ class BenchmarkMetrics:
     node: PRF1
     edge: PRF1
     direction_accuracy: float
+    node_count_error: float
+    edge_count_error: float
     exact_match: bool
     runtime_s: float | None = None
 
@@ -104,7 +106,6 @@ def compute_exact_match(
     gt_node_ids = {str(n["id"]) for n in gt_nodes}
     pred_node_ids = {str(n["id"]) for n in pred_nodes}
 
-    # Node exact: bijection by id count and full coverage of GT
     node_exact = (
         len(pred_node_ids) == len(gt_node_ids)
         and len(pred_to_gt) == len(gt_node_ids)
@@ -126,9 +127,17 @@ def compute_metrics(
     pred_to_gt: dict[str, str],
     runtime_s: float | None = None,
 ) -> BenchmarkMetrics:
-    node = compute_node_metrics(gt_nodes=gt_nodes, pred_nodes=pred_nodes, pred_to_gt=pred_to_gt)
+    node_count_error = float(abs(len(pred_nodes) - len(gt_nodes)))
+    edge_count_error = float(abs(len(pred_edges_projected_gt_space) - len(gt_edges)))
+
+    node = compute_node_metrics(
+        gt_nodes=gt_nodes,
+        pred_nodes=pred_nodes,
+        pred_to_gt=pred_to_gt,
+    )
     edge = compute_edge_metrics(
-        gt_edges=gt_edges, projected_pred_edges_gt_space=pred_edges_projected_gt_space
+        gt_edges=gt_edges,
+        projected_pred_edges_gt_space=pred_edges_projected_gt_space,
     )
     direction_accuracy = compute_direction_accuracy(
         gt_edges=gt_edges,
@@ -145,6 +154,8 @@ def compute_metrics(
         node=node,
         edge=edge,
         direction_accuracy=direction_accuracy,
+        node_count_error=node_count_error,
+        edge_count_error=edge_count_error,
         exact_match=exact_match,
         runtime_s=runtime_s,
     )

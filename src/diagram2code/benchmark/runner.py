@@ -27,6 +27,8 @@ class AggregateResult:
     node: PRF1
     edge: PRF1
     direction_accuracy: float
+    node_count_error: float
+    edge_count_error: float
     exact_match_rate: float
     runtime_mean_s: float | None
 
@@ -84,15 +86,18 @@ def _aggregate(samples: list[SampleResult]) -> AggregateResult:
     edge_p = _mean([s.metrics.edge.precision for s in samples])
     edge_r = _mean([s.metrics.edge.recall for s in samples])
     edge_f = _mean([s.metrics.edge.f1 for s in samples])
-
+    node_count_err = _mean([s.metrics.node_count_error for s in samples])
+    edge_count_err = _mean([s.metrics.edge_count_error for s in samples])
     dir_acc = _mean([s.metrics.direction_accuracy for s in samples])
     exact_rate = _mean([1.0 if s.metrics.exact_match else 0.0 for s in samples])
     rt_mean = _mean_optional([s.metrics.runtime_s for s in samples])
 
     return AggregateResult(
-        node=PRF1(node_p, node_r, node_f),
-        edge=PRF1(edge_p, edge_r, edge_f),
+        node=PRF1(precision=node_p, recall=node_r, f1=node_f),
+        edge=PRF1(precision=edge_p, recall=edge_r, f1=edge_f),
         direction_accuracy=dir_acc,
+        node_count_error=node_count_err,
+        edge_count_error=edge_count_err,
         exact_match_rate=exact_rate,
         runtime_mean_s=rt_mean,
     )

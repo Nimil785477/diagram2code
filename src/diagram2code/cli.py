@@ -388,6 +388,8 @@ def cmd_benchmark(args) -> int:
     print(f"node: p={agg.node.precision:.3f} r={agg.node.recall:.3f} f1={agg.node.f1:.3f}")
     print(f"edge: p={agg.edge.precision:.3f} r={agg.edge.recall:.3f} f1={agg.edge.f1:.3f}")
     print(f"direction_accuracy={agg.direction_accuracy:.3f}")
+    print(f"node_count_error={agg.node_count_error:.3f}")
+    print(f"edge_count_error={agg.edge_count_error:.3f}")
     print(f"exact_match_rate={agg.exact_match_rate:.3f}")
     print(f"runtime_mean_s={agg.runtime_mean_s}")
 

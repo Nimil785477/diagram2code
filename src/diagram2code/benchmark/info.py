@@ -38,6 +38,8 @@ def format_result_summary(data: dict[str, Any]) -> str:
         "node_f1",
         "edge_f1",
         "direction_accuracy",
+        "node_count_error",
+        "edge_count_error",
         "exact_match_rate",
         "runtime_mean_s",
     ]

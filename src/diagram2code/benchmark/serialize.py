@@ -175,6 +175,8 @@ def write_benchmark_json(
             metrics["edge_f1"] = _safe_float(_get_attr_any(edge, "f1"))
 
         metrics["direction_accuracy"] = _safe_float(_get_attr_any(agg, "direction_accuracy"))
+        metrics["node_count_error"] = _safe_float(_get_attr_any(agg, "node_count_error"))
+        metrics["edge_count_error"] = _safe_float(_get_attr_any(agg, "edge_count_error"))
         metrics["exact_match_rate"] = _safe_float(_get_attr_any(agg, "exact_match_rate"))
 
         runtime = _get_attr_any(agg, "runtime_mean_s")
