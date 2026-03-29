@@ -415,6 +415,24 @@ def cmd_benchmark(args) -> int:
     return 0
 
 
+def cmd_dataset_build(args) -> int:
+    if args.generator != "synthflow":
+        safe_print(f"Error: unknown dataset generator '{args.generator}'")
+        return 2
+
+    from diagram2code.datasets.synthflow import build_synthflow_dataset
+
+    build_synthflow_dataset(
+        out=args.out,
+        split=args.split,
+        num_samples=args.num_samples,
+        seed=args.seed,
+    )
+
+    safe_print(f"Built dataset: {args.out}")
+    return 0
+
+
 def cmd_dataset(args) -> int:
     from diagram2code.datasets.fetching.cli import (
         dataset_clean_cmd,
@@ -424,6 +442,9 @@ def cmd_dataset(args) -> int:
         dataset_path_cmd,
         dataset_verify_cmd,
     )
+
+    if args.dataset_cmd == "build":
+        return cmd_dataset_build(args)
 
     if args.dataset_cmd == "info":
         return dataset_info_cmd(args.name, cache_dir=args.cache_dir, installed_only=args.installed)
@@ -732,6 +753,40 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
     )
     p_clean.add_argument(
         "--cache-dir", type=Path, default=None, help="Override cache root directory"
+    )
+
+    p_build = sp.add_parser(
+        "build",
+        help="Build a local benchmarkable synthetic dataset",
+    )
+    p_build.add_argument(
+        "generator",
+        choices=["synthflow"],
+        help="Synthetic dataset generator to run",
+    )
+    p_build.add_argument(
+        "--out",
+        type=Path,
+        required=True,
+        help="Output dataset directory",
+    )
+    p_build.add_argument(
+        "--split",
+        choices=["train", "test", "all"],
+        default="test",
+        help="Split name to assign generated samples (default: test)",
+    )
+    p_build.add_argument(
+        "--num-samples",
+        type=int,
+        default=20,
+        help="Number of samples to generate (default: 20)",
+    )
+    p_build.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Random seed for deterministic generation (default: 0)",
     )
 
     return parser
