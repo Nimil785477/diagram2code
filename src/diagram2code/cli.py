@@ -430,6 +430,10 @@ def cmd_dataset_build(args) -> int:
     )
 
     safe_print(f"Built dataset: {args.out}")
+    safe_print("Generator: synthflow_v2")
+    safe_print(f"Split: {args.split}")
+    safe_print(f"Samples: {args.num_samples}")
+    safe_print(f"Seed: {args.seed}")
     return 0
 
 
