@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "name": "realworld-like-v1",
+  "version": "0.1",
+  "splits": {
+    "test": [
+      "rw_0001",
+      "rw_0002",
+      "rw_0003",
+      "rw_0004",
+      "rw_0005",
+      "rw_0006"
+    ]
+  },
+  "generator": {
+    "type": "curated_realworld_like",
+    "notes": "Small hand-curated Phase-3 evaluation set with less synthetic-looking layouts."
+  }
+}

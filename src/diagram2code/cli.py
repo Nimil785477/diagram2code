@@ -418,21 +418,31 @@ def cmd_benchmark(args) -> int:
 
 
 def cmd_dataset_build(args) -> int:
-    if args.generator != "synthflow":
+    from diagram2code.datasets.realworld_like import build_realworld_like_dataset
+    from diagram2code.datasets.synthflow import build_synthflow_dataset
+
+    if args.generator == "synthflow":
+        build_synthflow_dataset(
+            out=args.out,
+            split=args.split,
+            num_samples=args.num_samples,
+            seed=args.seed,
+        )
+        generator_name = "synthflow_v2"
+    elif args.generator == "realworld-like":
+        build_realworld_like_dataset(
+            out=args.out,
+            split=args.split,
+            num_samples=args.num_samples,
+            seed=args.seed,
+        )
+        generator_name = "realworld_like_v1"
+    else:
         safe_print(f"Error: unknown dataset generator '{args.generator}'")
         return 2
 
-    from diagram2code.datasets.synthflow import build_synthflow_dataset
-
-    build_synthflow_dataset(
-        out=args.out,
-        split=args.split,
-        num_samples=args.num_samples,
-        seed=args.seed,
-    )
-
     safe_print(f"Built dataset: {args.out}")
-    safe_print("Generator: synthflow_v2")
+    safe_print(f"Generator: {generator_name}")
     safe_print(f"Split: {args.split}")
     safe_print(f"Samples: {args.num_samples}")
     safe_print(f"Seed: {args.seed}")
@@ -767,7 +777,7 @@ def _build_dataset_parser() -> argparse.ArgumentParser:
     )
     p_build.add_argument(
         "generator",
-        choices=["synthflow"],
+        choices=["synthflow", "realworld-like"],
         help="Synthetic dataset generator to run",
     )
     p_build.add_argument(
