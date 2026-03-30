@@ -28,3 +28,30 @@ def test_benchmark_on_phase3_dataset_oracle_is_perfect(tmp_path: Path) -> None:
     assert result.aggregate.edge.f1 == 1.0
     assert result.aggregate.direction_accuracy == 1.0
     assert result.aggregate.exact_match_rate == 1.0
+
+
+def test_benchmark_oracle_outperforms_naive_on_phase3_dataset(tmp_path: Path) -> None:
+    ds_root = tmp_path / "synthetic_phase3"
+    generate_synthetic_basic(ds_root, n=6, seed=0, split="test")
+
+    oracle = make_predictor("oracle", dataset_path=ds_root, out_dir=None)
+    naive = make_predictor("naive", dataset_path=ds_root, out_dir=None)
+
+    oracle_result = run_benchmark(
+        dataset_path=ds_root,
+        predictor=oracle,
+        alpha=0.35,
+        split="test",
+        limit=6,
+    )
+    naive_result = run_benchmark(
+        dataset_path=ds_root,
+        predictor=naive,
+        alpha=0.35,
+        split="test",
+        limit=6,
+    )
+
+    assert oracle_result.aggregate.node.f1 > naive_result.aggregate.node.f1
+    assert oracle_result.aggregate.edge.f1 > naive_result.aggregate.edge.f1
+    assert oracle_result.aggregate.exact_match_rate > naive_result.aggregate.exact_match_rate
