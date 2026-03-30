@@ -27,3 +27,4 @@ out/
 # Local developer scratch (never commit)
 .dev/
 
+notes/

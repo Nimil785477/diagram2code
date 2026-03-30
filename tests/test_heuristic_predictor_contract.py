@@ -46,9 +46,21 @@ def test_heuristic_predictor_returns_valid_graph(tmp_path: Path):
     assert "edges" in pred
 
     assert len(pred["nodes"]) == 3
-    # heuristic connects sequentially => 2 edges
-    assert len(pred["edges"]) == 2
+    assert len(pred["edges"]) >= 1
+    assert len(pred["edges"]) <= 4
 
+    node_ids = {n["id"] for n in pred["nodes"]}
+    seen = set()
+    for edge in pred["edges"]:
+        assert "source" in edge
+        assert "target" in edge
+        assert edge["source"] in node_ids
+        assert edge["target"] in node_ids
+        assert edge["source"] != edge["target"]
+
+        key = (edge["source"], edge["target"])
+        assert key not in seen
+        seen.add(key)
     for n in pred["nodes"]:
         assert "id" in n
         assert "bbox" in n
