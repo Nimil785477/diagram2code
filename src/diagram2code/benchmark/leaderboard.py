@@ -99,6 +99,28 @@ def result_to_row(r: BenchmarkResult) -> LeaderboardRow:
     return LeaderboardRow(row)
 
 
+def _safe_float_for_sort(value: Any, *, default: float) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def _row_sort_key(row: LeaderboardRow) -> tuple[Any, ...]:
+    data = row.as_dict()
+    return (
+        -_safe_float_for_sort(data.get("exact_match_rate", ""), default=float("-inf")),
+        -_safe_float_for_sort(data.get("edge_f1", ""), default=float("-inf")),
+        -_safe_float_for_sort(data.get("node_f1", ""), default=float("-inf")),
+        -_safe_float_for_sort(data.get("direction_accuracy", ""), default=float("-inf")),
+        _safe_float_for_sort(data.get("node_count_error", ""), default=float("inf")),
+        _safe_float_for_sort(data.get("edge_count_error", ""), default=float("inf")),
+        str(data.get("predictor", "")),
+        str(data.get("dataset", "")),
+        str(data.get("split", "")),
+    )
+
+
 def build_rows(paths: Iterable[Path]) -> list[LeaderboardRow]:
     rows: list[LeaderboardRow] = []
     skipped: list[str] = []
@@ -117,7 +139,7 @@ def build_rows(paths: Iterable[Path]) -> list[LeaderboardRow]:
         raise ValueError(
             f"No valid benchmark result JSON files found.\nExamples of skipped files:\n{details}"
         )
-
+    rows.sort(key=_row_sort_key)
     return rows
 
 

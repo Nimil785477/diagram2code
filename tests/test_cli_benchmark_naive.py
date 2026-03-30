@@ -39,3 +39,61 @@ def test_cli_benchmark_naive_on_synthflow(tmp_path, capsys) -> None:
     assert payload["predictor"] == "naive"
     assert "node_count_error" in payload["metrics"]
     assert "edge_count_error" in payload["metrics"]
+
+
+def test_cli_benchmark_heuristic_outperforms_naive_on_synthflow(tmp_path) -> None:
+    dataset_dir = tmp_path / "dataset"
+    naive_json = tmp_path / "naive.json"
+    heuristic_json = tmp_path / "heuristic.json"
+
+    build_synthflow_dataset(out=dataset_dir, split="test", num_samples=3, seed=0)
+
+    rc_naive = main(
+        [
+            "benchmark",
+            "--dataset",
+            str(dataset_dir),
+            "--split",
+            "test",
+            "--predictor",
+            "naive",
+            "--limit",
+            "3",
+            "--json",
+            str(naive_json),
+        ]
+    )
+
+    rc_heuristic = main(
+        [
+            "benchmark",
+            "--dataset",
+            str(dataset_dir),
+            "--split",
+            "test",
+            "--predictor",
+            "heuristic",
+            "--limit",
+            "3",
+            "--json",
+            str(heuristic_json),
+        ]
+    )
+
+    assert rc_naive == 0
+    assert rc_heuristic == 0
+    assert naive_json.exists()
+    assert heuristic_json.exists()
+
+    naive_payload = json.loads(naive_json.read_text(encoding="utf-8"))
+    heuristic_payload = json.loads(heuristic_json.read_text(encoding="utf-8"))
+
+    assert naive_payload["predictor"] == "naive"
+    assert heuristic_payload["predictor"] == "heuristic"
+
+    assert heuristic_payload["metrics"]["node_f1"] >= naive_payload["metrics"]["node_f1"]
+    assert heuristic_payload["metrics"]["edge_f1"] >= naive_payload["metrics"]["edge_f1"]
+    assert (
+        heuristic_payload["metrics"]["exact_match_rate"]
+        >= naive_payload["metrics"]["exact_match_rate"]
+    )

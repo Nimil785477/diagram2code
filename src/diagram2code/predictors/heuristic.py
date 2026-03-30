@@ -6,12 +6,12 @@ from diagram2code.predictors.types import GraphPrediction
 
 class HeuristicPredictor:
     """
-    Simple deterministic baseline predictor.
+    Intermediate deterministic baseline predictor.
 
     Strategy:
     - Use dataset nodes directly
-    - Sort nodes by vertical position
-    - Connect each node to the next
+    - Sort nodes by geometric center: top-to-bottom, then left-to-right
+    - Connect each node to the next as a simple chain
     """
 
     name = "heuristic"
@@ -20,22 +20,24 @@ class HeuristicPredictor:
         gt = sample.load_graph_json()
         nodes = list(gt.get("nodes", []))
 
-        # Ensure ids are strings and bbox exists
         norm_nodes: list[dict] = []
         for n in nodes:
+            bbox = list(n.get("bbox", [0, 0, 0, 0]))
+            if len(bbox) != 4:
+                bbox = [0, 0, 0, 0]
+
             norm_nodes.append(
                 {
                     "id": str(n.get("id")),
-                    "bbox": list(n.get("bbox", [0, 0, 0, 0])),
+                    "bbox": bbox,
                 }
             )
 
-        # Sort by vertical center (top to bottom)
-        def y_center(node: dict) -> float:
+        def center_key(node: dict) -> tuple[float, float]:
             x, y, w, h = node["bbox"]
-            return y + h / 2
+            return (y + h / 2, x + w / 2)
 
-        norm_nodes.sort(key=y_center)
+        norm_nodes.sort(key=center_key)
 
         edges: list[dict] = []
         for a, b in zip(norm_nodes, norm_nodes[1:], strict=False):

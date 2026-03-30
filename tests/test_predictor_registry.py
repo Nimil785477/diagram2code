@@ -8,6 +8,11 @@ def test_get_predictor_oracle_resolves():
     assert cls.__name__ == "OraclePredictor"
 
 
+def test_get_predictor_heuristic_resolves():
+    cls = get_predictor("heuristic")
+    assert cls.__name__ == "HeuristicPredictor"
+
+
 def test_get_predictor_unknown_raises():
     with pytest.raises(ValueError):
         get_predictor("does-not-exist")
