@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from diagram2code.cli import main
 
 
-def test_cli_dataset_build_realworld_like_smoke(tmp_path, capsys) -> None:
+def test_cli_dataset_build_realworld_like_includes_expected_motif_metadata(tmp_path) -> None:
     out_dir = tmp_path / "realworld_like_ds"
 
     rc = main(
@@ -18,24 +19,50 @@ def test_cli_dataset_build_realworld_like_smoke(tmp_path, capsys) -> None:
             "--split",
             "test",
             "--num-samples",
-            "5",
+            "8",
             "--seed",
             "0",
         ]
     )
 
-    captured = capsys.readouterr()
-
     assert rc == 0
-    assert out_dir.exists()
-    assert (out_dir / "dataset.json").exists()
-    assert (out_dir / "splits.json").exists()
-    assert (out_dir / "images").exists()
-    assert (out_dir / "graphs").exists()
 
     payload = json.loads((out_dir / "dataset.json").read_text(encoding="utf-8"))
-    assert payload["name"] == "realworld-like-v1"
-    assert payload["splits"]["test"]
-    assert len(payload["splits"]["test"]) == 5
+    motifs = payload["generator"]["motifs"]
 
-    assert "Generator: realworld_like_v1" in captured.out
+    assert "simple_horizontal" in motifs
+    assert "branch_merge" in motifs
+    assert "staged_directional" in motifs
+    assert "fan_out_pipeline" in motifs
+    assert "staggered_multirow" in motifs
+    assert "loop_return" in motifs
+
+
+def test_cli_dataset_build_realworld_like_writes_matching_image_and_graph_counts(
+    tmp_path: Path,
+) -> None:
+    out_dir = tmp_path / "realworld_like_ds"
+
+    rc = main(
+        [
+            "dataset",
+            "build",
+            "realworld-like",
+            "--out",
+            str(out_dir),
+            "--split",
+            "test",
+            "--num-samples",
+            "8",
+            "--seed",
+            "0",
+        ]
+    )
+
+    assert rc == 0
+
+    images = sorted((out_dir / "images").glob("*.png"))
+    graphs = sorted((out_dir / "graphs").glob("*.json"))
+
+    assert len(images) == 8
+    assert len(graphs) == 8

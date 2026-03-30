@@ -188,6 +188,9 @@ def _motif_library():
         _motif_simple_horizontal,
         _motif_branch_merge,
         _motif_staged_directional,
+        _motif_fan_out_pipeline,
+        _motif_staggered_multirow,
+        _motif_loop_return,
     ]
 
 
@@ -253,6 +256,9 @@ def build_realworld_like_dataset(
                 "simple_horizontal",
                 "branch_merge",
                 "staged_directional",
+                "fan_out_pipeline",
+                "staggered_multirow",
+                "loop_return",
             ],
         },
     }
@@ -265,3 +271,66 @@ def build_realworld_like_dataset(
     (out / "splits.json").write_text(json.dumps(splits_json, indent=2), encoding="utf-8")
 
     return out
+
+
+def _motif_fan_out_pipeline(
+    rng: random.Random,
+) -> tuple[tuple[int, int], list[_Node], list[_Edge]]:
+    canvas = (720, 420)
+    nodes = [
+        _Node("A", _make_bbox(x=40, y=165, w=88, h=68, canvas_w=720, canvas_h=420, rng=rng)),
+        _Node("B", _make_bbox(x=220, y=60, w=82, h=64, canvas_w=720, canvas_h=420, rng=rng)),
+        _Node("C", _make_bbox(x=235, y=165, w=84, h=66, canvas_w=720, canvas_h=420, rng=rng)),
+        _Node("D", _make_bbox(x=220, y=285, w=82, h=64, canvas_w=720, canvas_h=420, rng=rng)),
+        _Node("E", _make_bbox(x=470, y=165, w=96, h=68, canvas_w=720, canvas_h=420, rng=rng)),
+    ]
+    edges = [
+        _Edge("A", "B"),
+        _Edge("A", "C"),
+        _Edge("A", "D"),
+        _Edge("B", "E"),
+        _Edge("C", "E"),
+        _Edge("D", "E"),
+    ]
+    return canvas, nodes, edges
+
+
+def _motif_staggered_multirow(
+    rng: random.Random,
+) -> tuple[tuple[int, int], list[_Node], list[_Edge]]:
+    canvas = (760, 460)
+    nodes = [
+        _Node("A", _make_bbox(x=70, y=65, w=88, h=66, canvas_w=760, canvas_h=460, rng=rng)),
+        _Node("B", _make_bbox(x=260, y=40, w=86, h=64, canvas_w=760, canvas_h=460, rng=rng)),
+        _Node("C", _make_bbox(x=255, y=210, w=84, h=64, canvas_w=760, canvas_h=460, rng=rng)),
+        _Node("D", _make_bbox(x=475, y=110, w=92, h=68, canvas_w=760, canvas_h=460, rng=rng)),
+        _Node("E", _make_bbox(x=610, y=285, w=88, h=66, canvas_w=760, canvas_h=460, rng=rng)),
+    ]
+    edges = [
+        _Edge("A", "B"),
+        _Edge("A", "C"),
+        _Edge("B", "D"),
+        _Edge("C", "D"),
+        _Edge("D", "E"),
+    ]
+    return canvas, nodes, edges
+
+
+def _motif_loop_return(
+    rng: random.Random,
+) -> tuple[tuple[int, int], list[_Node], list[_Edge]]:
+    canvas = (700, 420)
+    nodes = [
+        _Node("A", _make_bbox(x=110, y=70, w=84, h=64, canvas_w=700, canvas_h=420, rng=rng)),
+        _Node("B", _make_bbox(x=320, y=70, w=84, h=64, canvas_w=700, canvas_h=420, rng=rng)),
+        _Node("C", _make_bbox(x=320, y=250, w=86, h=66, canvas_w=700, canvas_h=420, rng=rng)),
+        _Node("D", _make_bbox(x=535, y=160, w=90, h=68, canvas_w=700, canvas_h=420, rng=rng)),
+    ]
+    edges = [
+        _Edge("A", "B"),
+        _Edge("B", "D"),
+        _Edge("A", "C"),
+        _Edge("C", "D"),
+        _Edge("D", "B"),
+    ]
+    return canvas, nodes, edges
