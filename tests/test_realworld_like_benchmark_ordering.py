@@ -91,5 +91,9 @@ def test_realworld_like_benchmark_ordering(tmp_path) -> None:
         > heuristic_payload["metrics"]["exact_match_rate"]
     )
     assert heuristic_payload["metrics"]["edge_f1"] > naive_payload["metrics"]["edge_f1"]
+    assert (
+        heuristic_payload["metrics"]["direction_accuracy"]
+        > naive_payload["metrics"]["direction_accuracy"]
+    )
     assert heuristic_payload["metrics"]["node_f1"] >= naive_payload["metrics"]["node_f1"]
     assert oracle_payload["metrics"]["edge_f1"] == 1.0

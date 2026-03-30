@@ -154,3 +154,75 @@ def test_cli_benchmark_oracle_outperforms_naive_on_synthflow(tmp_path) -> None:
     assert (
         oracle_payload["metrics"]["exact_match_rate"] > naive_payload["metrics"]["exact_match_rate"]
     )
+
+
+def test_cli_benchmark_heuristic_is_meaningfully_better_than_naive_on_realworld_like(
+    tmp_path,
+) -> None:
+    dataset_dir = tmp_path / "realworld_like_ds"
+    naive_json = tmp_path / "naive.json"
+    heuristic_json = tmp_path / "heuristic.json"
+
+    rc_build = main(
+        [
+            "dataset",
+            "build",
+            "realworld-like",
+            "--out",
+            str(dataset_dir),
+            "--split",
+            "test",
+            "--num-samples",
+            "8",
+            "--seed",
+            "0",
+        ]
+    )
+    assert rc_build == 0
+
+    rc_naive = main(
+        [
+            "benchmark",
+            "--dataset",
+            str(dataset_dir),
+            "--split",
+            "test",
+            "--predictor",
+            "naive",
+            "--limit",
+            "8",
+            "--json",
+            str(naive_json),
+        ]
+    )
+    rc_heuristic = main(
+        [
+            "benchmark",
+            "--dataset",
+            str(dataset_dir),
+            "--split",
+            "test",
+            "--predictor",
+            "heuristic",
+            "--limit",
+            "8",
+            "--json",
+            str(heuristic_json),
+        ]
+    )
+
+    assert rc_naive == 0
+    assert rc_heuristic == 0
+
+    naive_payload = json.loads(naive_json.read_text(encoding="utf-8"))
+    heuristic_payload = json.loads(heuristic_json.read_text(encoding="utf-8"))
+
+    assert heuristic_payload["metrics"]["edge_f1"] > naive_payload["metrics"]["edge_f1"]
+    assert (
+        heuristic_payload["metrics"]["direction_accuracy"]
+        > naive_payload["metrics"]["direction_accuracy"]
+    )
+    assert (
+        heuristic_payload["metrics"]["edge_count_error"]
+        < naive_payload["metrics"]["edge_count_error"]
+    )
