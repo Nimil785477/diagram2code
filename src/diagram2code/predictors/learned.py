@@ -23,16 +23,49 @@ def _dedupe_edges(edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def _sample_image_size(sample: dict[str, Any]) -> tuple[float, float]:
-    metadata = sample.get("metadata", {})
+def _sample_field(sample: Any, name: str, default: Any = None) -> Any:
+    if isinstance(sample, dict):
+        return sample.get(name, default)
+    return getattr(sample, name, default)
+
+
+def _load_sample_graph_json(sample: Any) -> dict[str, Any]:
+    if isinstance(sample, dict):
+        if "graph" in sample and isinstance(sample["graph"], dict):
+            return dict(sample["graph"])
+        return dict(sample)
+
+    load_graph_json = getattr(sample, "load_graph_json", None)
+    if callable(load_graph_json):
+        return dict(load_graph_json())
+
+    graph = getattr(sample, "graph", None)
+    if isinstance(graph, dict):
+        return dict(graph)
+
+    raise TypeError("Could not load graph JSON from sample")
+
+
+def _sample_nodes(sample: Any) -> list[dict[str, Any]]:
+    graph = _load_sample_graph_json(sample)
+    return [dict(node) for node in graph.get("nodes", [])]
+
+
+def _sample_metadata(sample: Any) -> dict[str, Any]:
+    graph = _load_sample_graph_json(sample)
+    metadata = graph.get("metadata", {})
+    return dict(metadata) if metadata is not None else {}
+
+
+def _sample_image_size(sample: Any) -> tuple[float, float]:
+    metadata = _sample_metadata(sample)
     width = metadata.get("image_width")
     height = metadata.get("image_height")
 
     if width is not None and height is not None:
         return float(width), float(height)
 
-    # fallback: infer from node extents
-    nodes = sample["nodes"]
+    nodes = _sample_nodes(sample)
     max_x = 0.0
     max_y = 0.0
     for node in nodes:
@@ -44,23 +77,6 @@ def _sample_image_size(sample: dict[str, Any]) -> tuple[float, float]:
 
 
 class LearnedPredictor:
-    """
-    Lightweight learned edge baseline.
-
-    Expected input sample shape:
-    {
-        "nodes": [...],
-        "metadata": {...},   # optional image_width / image_height
-        ...
-    }
-
-    Expected output:
-    {
-        "nodes": [...],
-        "edges": [{"from": "...", "to": "..."}, ...]
-    }
-    """
-
     name = "learned"
     description = "Learned pairwise edge baseline using geometric features"
 
@@ -75,8 +91,8 @@ class LearnedPredictor:
         if artifact.feature_names != expected_names:
             raise ValueError("learned model feature_names do not match runtime feature_names")
 
-    def predict(self, sample: dict[str, Any]) -> dict[str, Any]:
-        nodes = [dict(node) for node in sample["nodes"]]
+    def predict(self, sample: Any) -> dict[str, Any]:
+        nodes = _sample_nodes(sample)
         image_width, image_height = _sample_image_size(sample)
 
         scored_edges: list[tuple[float, str, str]] = []
