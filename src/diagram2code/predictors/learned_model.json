@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "model_type": "logistic_regression",
+  "feature_names": [
+    "dx_norm",
+    "dy_norm",
+    "abs_dx_norm",
+    "abs_dy_norm",
+    "euclidean_norm",
+    "manhattan_norm",
+    "src_w_norm",
+    "src_h_norm",
+    "dst_w_norm",
+    "dst_h_norm",
+    "src_area_norm",
+    "dst_area_norm",
+    "log_w_ratio",
+    "log_h_ratio",
+    "log_area_ratio",
+    "is_right_of",
+    "is_left_of",
+    "is_below",
+    "is_above",
+    "vertical_overlap_ratio",
+    "horizontal_overlap_ratio",
+    "same_row_like",
+    "same_col_like",
+    "rank_by_distance_norm",
+    "rank_by_abs_dx_norm",
+    "rank_by_abs_dy_norm",
+    "is_nearest_right_neighbor",
+    "is_nearest_down_neighbor"
+  ],
+  "coef": [
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+  ],
+  "intercept": 0.0,
+  "threshold": 0.5,
+  "top_k": 2
+}
